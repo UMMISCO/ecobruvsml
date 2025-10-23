@@ -1,0 +1,836 @@
+---
+title: "visu_indval_pred_results_by_site"
+author: "Estephe Kana, Eugeni Belda & Edi Prifti"
+date: "`r Sys.Date()`"
+output:
+  word_document: default
+  html_document: default
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Loading packages
+
+```{r load the packages, message=FALSE, warning=FALSE}
+library(readr) # for data import
+library(momr) # for normalizing, visualizing and microbiome analyses
+library(ggplot2) # for plots
+library(gridExtra) # for multiple plots
+library(vegan) # for ecological analyses
+library(viridis) # for colour maps
+library(stats) # for euclidean distance computation
+library(predomics) # loading predomics
+library(patchwork) # to display multiples graphs in the same figure
+library(dplyr)
+library(plyr)
+library(ggrepel)
+library(labdsv) # for Indicator Species Analysis
+library(reshape)
+library(ggVennDiagram)
+library(ggpubr)
+```
+
+
+## Venn diagram on indval, terinter and bininter species
+
+```{r plotting venndiagram, message=FALSE,results='hide', warning=FALSE, fig.height = 6, fig.width = 10, warning=FALSE}
+
+## In abundance
+
+ter_Barrier_Bay <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/indicSpeciesPredomics/terBeam_terinter/IndicSpecies_predomicsResults_Barrier_Bay.csv", show_col_types = FALSE))
+
+ter_Barrier_Lagoon <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/indicSpeciesPredomics/terBeam_terinter/IndicSpecies_predomicsResults_Barrier_Lagoon.csv", show_col_types = FALSE))
+
+ter_Bay_Lagoon <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/indicSpeciesPredomics/terBeam_terinter/IndicSpecies_predomicsResults_Bay_Lagoon.csv", show_col_types = FALSE))
+
+# View(df1)
+
+bin_Barrier_Bay <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/indicSpeciesPredomics/terBeam_bininter/IndicSpecies_predomicsResults_Barrier_Bay.csv", show_col_types = FALSE))
+
+bin_Barrier_Lagoon <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/indicSpeciesPredomics/terBeam_bininter/IndicSpecies_predomicsResults_Barrier_Lagoon.csv", show_col_types = FALSE))
+
+bin_Bay_Lagoon <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/indicSpeciesPredomics/terBeam_bininter/IndicSpecies_predomicsResults_Bay_Lagoon.csv", show_col_types = FALSE))
+
+
+indval_by_site <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/indicsSpeciesIndval/InValSpecies_video_data_by_Site.csv", show_col_types = FALSE))
+
+
+# define combine table for Indval, predomics_bininter and predomics_terinter species on Barrier_Bay classification
+
+Barrier_Bay_species <- merge(ter_Barrier_Bay, bin_Barrier_Bay, by="Species")
+
+indval_predomics_Barrier_Bay <- merge(Barrier_Bay_species, indval_by_site, by= "Species")
+
+df1.indval_species = filter(indval_predomics_Barrier_Bay, IsIndSpec == 1 & Cluster== c("Barrier","Bay"))
+df1.terinter_species = filter(indval_predomics_Barrier_Bay, IsInFBM.x == 1)
+df1.bininter_species = filter(indval_predomics_Barrier_Bay, IsInFBM.y == 1)
+df1.filter <- list(ind=df1.indval_species$Species,
+              ter=df1.terinter_species$Species,
+              bin= df1.bininter_species$Species)
+df1.venndiag <- ggVennDiagram(df1.filter, set_size = 3, label_size = 5, label = "count") + ggtitle('Barrier_vs_Bay')+ theme(plot.title = element_text(face = "bold", margin=margin(10,0,10,0)))  + guides(fill = guide_legend(title = "IndicSpecies")) + theme(legend.title = element_text(color = "black", size=9), legend.position = "bottom") + scale_fill_continuous(limits=c(0,15), low="gray",high = "lightblue")
+
+# define combine table for Indval, predomics_bininter and predomics_terinter species on Barrier_Lagoon classification
+
+Barrier_Lagoon_species <- merge(ter_Barrier_Lagoon, bin_Barrier_Lagoon, by="Species")
+
+indval_predomics_Barrier_Lagoon <- merge(Barrier_Lagoon_species, indval_by_site, by= "Species")
+
+df2.indval_species = filter(indval_predomics_Barrier_Lagoon, IsIndSpec == 1 & Cluster== c("Barrier","Lagoon"))
+df2.terinter_species = filter(indval_predomics_Barrier_Lagoon, IsInFBM.x == 1)
+df2.bininter_species = filter(indval_predomics_Barrier_Lagoon, IsInFBM.y == 1)
+df2.filter <- list(ind=df2.indval_species$Species,
+              ter=df2.terinter_species$Species,
+              bin= df2.bininter_species$Species)
+df2.venndiag <- ggVennDiagram(df2.filter, set_size = 3, label_size = 5, label = "count") + ggtitle('Barrier_vs_Lagoon')+ theme(plot.title = element_text(face = "bold", margin=margin(10,0,10,0)))  + guides(fill = guide_legend(title = "IndicSpecies")) + theme(legend.title = element_text(color = "black", size=9), legend.position = "bottom") + scale_fill_continuous(limits=c(0,15), low="gray",high = "lightblue")
+
+# define combine table for Indval, predomics_bininter and predomics_terinter species on Bay_Lagoon classification
+
+Bay_Lagoon_species <- merge(ter_Bay_Lagoon, bin_Bay_Lagoon, by="Species")
+
+indval_predomics_Bay_Lagoon <- merge(Bay_Lagoon_species, indval_by_site, by= "Species")
+
+df3.indval_species = filter(indval_predomics_Bay_Lagoon, IsIndSpec == 1 & Cluster== c("Bay","Lagoon"))
+df3.terinter_species = filter(indval_predomics_Bay_Lagoon, IsInFBM.x == 1)
+df3.bininter_species = filter(indval_predomics_Bay_Lagoon, IsInFBM.y == 1)
+df3.filter <- list(ind=df3.indval_species$Species,
+              ter=df3.terinter_species$Species,
+              bin= df3.bininter_species$Species)
+df3.venndiag <- ggVennDiagram(df3.filter, set_size = 3, label_size = 5, label = "count") + ggtitle('Bay_vs_Lagoon')+ theme(plot.title = element_text(face = "bold", margin=margin(10,0,10,0)))  + guides(fill = guide_legend(title = "IndicSpecies")) + theme(legend.title = element_text(color = "black", size=9), legend.position = "bottom") + scale_fill_continuous(limits=c(0,15), low="gray",high = "lightblue")
+
+# plot the Venn diagram by comparison
+venn1= grid.arrange(df1.venndiag,
+             df2.venndiag,
+             df3.venndiag, ncol=3, top = text_grob("For data in abundance", 
+               color = "red", face = "bold", size = 14, vjust = 1)) 
+             
+
+## In presence/absence
+
+# Comparison species for terinter model
+ter_Barrier_Bay_pa <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/indicSpeciesPredomics/terBeam_terinter/IndicSpecies_predomicsResults_Barrier_Bay_pres_abs.csv", show_col_types = FALSE))
+
+ter_Barrier_Lagoon_pa <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/indicSpeciesPredomics/terBeam_terinter/IndicSpecies_predomicsResults_Barrier_Lagoon_pres_abs.csv", show_col_types = FALSE))
+
+ter_Bay_Lagoon_pa <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/indicSpeciesPredomics/terBeam_terinter/IndicSpecies_predomicsResults_Bay_Lagoon_pres_abs.csv", show_col_types = FALSE))
+
+# Comparison species for bininter model
+
+bin_Barrier_Bay_pa <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/indicSpeciesPredomics/terBeam_bininter/IndicSpecies_predomicsResults_Barrier_Bay_pres_abs.csv", show_col_types = FALSE))
+
+bin_Barrier_Lagoon_pa <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/indicSpeciesPredomics/terBeam_bininter/IndicSpecies_predomicsResults_Barrier_Lagoon_pres_abs.csv", show_col_types = FALSE))
+
+bin_Bay_Lagoon_pa <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/indicSpeciesPredomics/terBeam_bininter/IndicSpecies_predomicsResults_Bay_Lagoon_pres_abs.csv", show_col_types = FALSE))
+
+
+indval_by_site <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/indicsSpeciesIndval/InValSpecies_video_data_by_Site.csv", show_col_types = FALSE))
+
+
+# define combine table for Indval, predomics_bininter and predomics_terinter species on Barrier_Bay classification
+
+Barrier_Bay_species_pa <- merge(ter_Barrier_Bay_pa, bin_Barrier_Bay_pa, by="Species")
+
+indval_predomics_Barrier_Bay_pa <- merge(Barrier_Bay_species_pa, indval_by_site, by= "Species")
+
+df1.indval_species_pa = filter(indval_predomics_Barrier_Bay_pa, IsIndSpec == 1 & Cluster== c("Barrier","Bay"))
+df1.terinter_species_pa = filter(indval_predomics_Barrier_Bay_pa, IsInFBM.x == 1)
+df1.bininter_species_pa = filter(indval_predomics_Barrier_Bay_pa, IsInFBM.y == 1)
+df1.filter_pa <- list(ind=df1.indval_species_pa$Species,
+              ter=df1.terinter_species_pa$Species,
+              bin= df1.bininter_species_pa$Species)
+df1.venndiag_pa <- ggVennDiagram(df1.filter_pa, set_size = 3, label_size = 5, label = "count") + ggtitle('Barrier_vs_Bay')+ theme(plot.title = element_text(face = "bold", margin=margin(10,0,10,0)))  + guides(fill = guide_legend(title = "IndicSpecies")) + theme(legend.title = element_text(color = "black", size=9), legend.position = "bottom") + scale_fill_continuous(limits=c(0,15), low="gray",high = "lightblue")
+
+# define combine table for Indval, predomics_bininter and predomics_terinter species on Barrier_Lagoon classification
+
+Barrier_Lagoon_species_pa <- merge(ter_Barrier_Lagoon_pa, bin_Barrier_Lagoon_pa, by="Species")
+
+indval_predomics_Barrier_Lagoon_pa <- merge(Barrier_Lagoon_species_pa, indval_by_site, by= "Species")
+
+df2.indval_species_pa = filter(indval_predomics_Barrier_Lagoon_pa, IsIndSpec == 1 & Cluster== c("Barrier","Lagoon"))
+df2.terinter_species_pa = filter(indval_predomics_Barrier_Lagoon_pa, IsInFBM.x == 1)
+df2.bininter_species_pa = filter(indval_predomics_Barrier_Lagoon_pa, IsInFBM.y == 1)
+df2.filter_pa <- list(ind=df2.indval_species_pa$Species,
+              ter=df2.terinter_species_pa$Species,
+              bin= df2.bininter_species_pa$Species)
+df2.venndiag_pa <- ggVennDiagram(df2.filter_pa, set_size = 3, label_size = 5, label = "count") + ggtitle('Barrier_vs_Lagoon')+ theme(plot.title = element_text(face = "bold", margin=margin(10,0,10,0)))  + guides(fill = guide_legend(title = "IndicSpecies")) + theme(legend.title = element_text(color = "black", size=9), legend.position = "bottom") + scale_fill_continuous(limits=c(0,15), low="gray",high = "lightblue")
+
+# define combine table for Indval, predomics_bininter and predomics_terinter species on Bay_Lagoon classification
+
+Bay_Lagoon_species_pa <- merge(ter_Bay_Lagoon_pa, bin_Bay_Lagoon_pa, by="Species")
+
+indval_predomics_Bay_Lagoon_pa <- merge(Bay_Lagoon_species_pa, indval_by_site, by= "Species")
+
+df3.indval_species_pa = filter(indval_predomics_Bay_Lagoon_pa, IsIndSpec == 1 & Cluster== c("Bay","Lagoon"))
+df3.terinter_species_pa = filter(indval_predomics_Bay_Lagoon_pa, IsInFBM.x == 1)
+df3.bininter_species_pa = filter(indval_predomics_Bay_Lagoon_pa, IsInFBM.y == 1)
+df3.filter_pa <- list(ind=df3.indval_species_pa$Species,
+              ter=df3.terinter_species_pa$Species,
+              bin= df3.bininter_species_pa$Species)
+df3.venndiag_pa <- ggVennDiagram(df3.filter_pa, set_size = 3, label_size = 5, label = "count") + ggtitle('Bay_vs_Lagoon')+ theme(plot.title = element_text(face = "bold", margin=margin(10,0,10,0)))  + guides(fill = guide_legend(title = "IndicSpecies")) + theme(legend.title = element_text(color = "black", size=9), legend.position = "bottom") + scale_fill_continuous(limits=c(0,15), low="gray",high = "lightblue")
+
+# plot the Venn diagram by comparison
+venn2= grid.arrange(df1.venndiag_pa,
+             df2.venndiag_pa,
+             df3.venndiag_pa, ncol=3, top = text_grob("For data in presence/absence", 
+               color = "red", face = "bold", size = 14, vjust = 1)) 
+
+# combined venn plot of abundance + presence/absence
+pdf(file="/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/plots/venn_diagram_by_site.pdf", h=8, w=10)
+ggarrange(venn1, venn2, nrow=2, ncol=1)
+dev.off()
+```
+
+## Visualization of predomics Models performances (Terinter, bininter) in abundance
+
+
+``` {r visualization of models performances, message=FALSE,results='hide', warning=FALSE, fig.height = 10, fig.width = 10}
+
+# Integrated visualization performance of models in training/testing steps
+
+#Get the files corresponding to the saved objects of each binary prediction task
+root_path= "/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/Predomics_analysis/"
+
+# get alldatalist for terinter
+path= paste(root_path, paste("terBeam", "terinter", sep="_"), sep="/")
+files <- list.files(path, pattern = ".Rda$", recursive = TRUE)
+#integrate all of them in single list
+alldatalist.video_site.terinter_ab <- list()
+files_abund = files[-grep('pres_abs', files)]
+for(f in files_abund)
+{
+  #print(f)
+  fobj <- load(paste(path,f,sep = "/"))
+  fobj <- get(fobj)
+  alldatalist.video_site.terinter_ab[[gsub("\\/.*","", f)]] <- fobj
+}
+
+# get alldatalist for bininter
+path= paste(root_path, paste("terBeam", "bininter", sep="_"), sep="/")
+files <- list.files(path, pattern = ".Rda$", recursive = TRUE)
+#integrate all of them in single list
+alldatalist.video_site.bininter_ab <- list()
+files_abund = files[-grep('pres_abs', files)]
+for(f in files_abund)
+{
+  #print(f)
+  fobj <- load(paste(path,f,sep = "/"))
+  fobj <- get(fobj)
+  alldatalist.video_site.bininter_ab[[gsub("\\/.*","", f)]] <- fobj
+}
+
+# combine all results in one list
+alldatalist.video_site_ab = list()
+alldatalist.video_site_ab$bininter = alldatalist.video_site.bininter_ab
+alldatalist.video_site_ab$terinter = alldatalist.video_site.terinter_ab
+
+# Build a list to save the needed datasets for plotting
+digest.list_ab <- list()
+for (m in names(alldatalist.video_site_ab)) {
+    for (i in c("Barrier_vs_Bay", "Barrier_vs_Lagoon", "Bay_vs_Lagoon", "Offshore_vs_Inshore")) {
+      iobj <- alldatalist.video_site_ab[[m]][[i]][["digest"]]
+      #iterate over acc and auc tables in cv$scores (source of boxplot visualization in digest plots)
+      for(t in c("generalization.auc","generalization.acc"))
+      {
+        #print(t)
+        #Get the data
+        tdf <- iobj$cv$scores[[t]]
+        #exclude the na
+        tdf <- tdf[rowSums(!is.na(tdf))>0,]
+        #melt + process for plotting
+        tdf <- data.frame(parsimony = rownames(tdf), tdf)
+        tdf <- melt(tdf, id.vars = "parsimony")
+        #Add the comparison (the i)
+        tdf$comparison <- i
+        #Add the variable (here habitat)
+        tdf$source <- "Habitat"
+        # Add the algorithm
+        tdf$algorithm <- m
+        #Save
+        digest.list_ab[[t]][[i]][[m]] <- tdf
+      }
+      #iterate over the empirical performance data of best model in each prediction task (source of lineplot visualization in digest plots)
+      for(t in c("accuracy_","auc_","recall_","precision_"))
+      {
+        #print(t)
+        tdf <- data.frame(value=iobj$best$scores[[t]], 
+                          parsimony=names(iobj$best$scores[[t]]),
+                          comparison=i,
+                          source="Habitat",
+                          algorithm= m)
+        #Save
+        digest.list_ab[[t]][[i]][[m]] <- tdf
+      }
+    }
+    
+  }
+    
+  #For each sub-element in digest.list_ab, do the rbind of the dataframes of each binary prediction task
+  for (n in names(digest.list_ab)) {
+    digest.list_ab[[n]] <- lapply(digest.list_ab[[n]], function(x){do.call("rbind", x)})
+  }
+  #For each element in digest.list_ab, do the rbind of the dataframes of each binary prediction task
+  digest.list_ab <- lapply(digest.list_ab, function(x){do.call("rbind", x)})
+  
+  #Build the visualization plots, first boxplots of acc/auc across training/test CV data
+  digest.plots_ab <- list()
+  for(k in c("generalization.auc","generalization.acc"))
+  {
+    kdf <- digest.list_ab[[k]]
+    #Factorize the parsimony variable
+    kdf$comparison <- factor(kdf$comparison)
+    # kdf$comparison <- factor(kdf$comparison,
+    #                         levels = levels(kdf$parsimony)[order(as.numeric(gsub("k_","", levels(kdf$parsimony))))])
+    #Do the integrated plot (here the facet_grid(.~comparison) command stratifies the plot by comparison)
+    # plot by comparison
+    digest.plots_ab[[k]] <- ggplot(data = kdf, aes(y = value, x = comparison)) +
+      geom_point(aes(color = "dark"), position = position_jitterdodge(dodge.width = 0.9), size = 1, alpha = 0.5)+
+      geom_boxplot(notch = FALSE, outlier.colour = NA, position = position_dodge(width = 0.9), alpha = 0.5) +
+      ylab(gsub("^.*\\.","", k)) +
+      xlab("Comparison") +
+      ggtitle(gsub("\\..*$","", k)) +
+      #ylim(c(0,1)) +
+      facet_grid(.~algorithm) +
+      theme_bw() +
+      # geom_hline(yintercept = unique(maj.class),col = "gray", linetype = "dashed") +
+      theme(legend.position = "bottom",
+            legend.direction = "horizontal") +
+            guides(colour = "none") +
+      ##Paired wilcoxon tests btw classes
+  #stat_compare_means(method = "wilcox", comparisons = combn(x = as.character(unique(kdf$comparison)), m = 2, simplify = FALSE)) +
+      #stat_compare_means(method = "kruskal")+
+      theme(axis.text.x = element_text(angle=45, vjust = 1, hjust=1, size = 7)) #+
+      #theme(strip.text.x=element_text(angle=45, vjust = 1, hjust=1, size=4))
+  }
+  #Second, lineplots of empirical performances
+  for(i in c("accuracy_","auc_","recall_","precision_"))
+  {
+    idf <- digest.list_ab[[i]]
+    #Factorize the parsimony variable
+    idf$parsimony <- factor(idf$parsimony)
+    idf$parsimony <- factor(idf$parsimony,
+                            levels = levels(idf$parsimony)[order(as.numeric(gsub("k_","", levels(idf$parsimony))))])
+    #get the data for best model in each case as dataframe, save first in list for each comparison (1 dataframe per comparison, single line)
+    ibest <- list()
+    for(c in unique(idf$comparison))
+    {
+      ibest[['terinter']][[c]] <- data.frame(learner=alldatalist.video_site.terinter_ab[[c]]$digest$best$model$learner,
+                               language=alldatalist.video_site.terinter_ab[[c]]$digest$best$model$language,
+                               variable=alldatalist.video_site.terinter_ab[[c]]$digest$best$model[[i]], variable.source=i,
+                               k=length(alldatalist.video_site.terinter_ab[[c]]$digest$best$model$indices_),
+                               comparison=c)
+    ibest[['bininter']][[c]] <- data.frame(learner=alldatalist.video_site.bininter_ab[[c]]$digest$best$model$learner,
+                               language=alldatalist.video_site.bininter_ab[[c]]$digest$best$model$language,
+                               variable=alldatalist.video_site.bininter_ab[[c]]$digest$best$model[[i]], variable.source=i,
+                               k=length(alldatalist.video_site.bininter_ab[[c]]$digest$best$model$indices_),
+                               comparison=c)
+    }
+    
+    #do the rbind of the dataframes of each binary prediction task
+    ibest <- lapply(ibest, function(x){do.call("rbind", x)})
+  
+    #merge individual dataframes in single dataframe (rbind passed to do.call function + list ibest)
+    ibest <- do.call("rbind",ibest)
+    ibest$language <- as.factor(ibest$language)
+    #Add the labels that we want to visualize corresponding to the best model of each prediction task
+    ibest$label <- paste(ibest$comparison,"; L:", ibest$learner,"_", m,"; F:", signif(ibest$variable,2), "; K=", ibest$k, sep = "")
+    ibest$x <- (length(unique(idf$parsimony))+1)/2
+    ibest$y <- seq(1,nrow(ibest),1)/20
+    #do the integrated plot (colour lines and points by comparisons + add the infos for the best model in each comparison stored in the ibest table) + save
+    digest.plots_ab[[i]] <- ggplot(data = idf, aes(x = parsimony, y = value, group = 1)) +
+      geom_line(aes(group=comparison,color = comparison)) +
+      geom_point(size = 2, alpha = 1) +
+      geom_text(data=ibest, aes(x=x,y=y, label=label, colour=comparison), size=1.5, inherit.aes = FALSE) +
+      ylab(i) +
+      xlab("Model parsimony") +
+      ggtitle("Emprical performance") +
+      ylim(c(0,1)) +
+      theme_bw() +
+      facet_grid(.~algorithm) +
+      # geom_hline(yintercept = mean(maj.class), col = "gray", linetype = "dashed") +
+      theme(legend.position = "none",
+            legend.direction = "horizontal",
+            legend.title = element_blank()) #+
+      #theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size = 7))
+  }
+
+#Integrated visualization as in the output of digest function but now integrating all pairwise comparisons across levels of habitat variable
+pdf(file="/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/plots/models_performances_video_data_abundance.pdf", h=6, w=7)
+grid.arrange(#digest.plots_ab$empirical.auc,
+             digest.plots_ab$generalization.auc, 
+             #digest.plots_ab$empirical.acc, 
+             digest.plots_ab$generalization.acc,
+             digest.plots_ab$auc_,
+             digest.plots_ab$accuracy_,
+             #digest.plots_ab$recall_,
+             #digest.plots_ab$precision_,
+            ncol=2, nrow=2)
+dev.off()
+```
+## Visualization of predomics Models performances (Terinter, bininter) in presence/absence
+
+
+``` {r visualization of models performances, message=FALSE,results='hide', warning=FALSE, fig.height = 10, fig.width = 10}
+
+# Integrated visualization performance of models in training/testing steps
+
+#Get the files corresponding to the saved objects of each binary prediction task
+root_path= "/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/Predomics_analysis/"
+
+# get alldatalist for terinter
+path= paste(root_path, paste("terBeam", "terinter", sep="_"), sep="/")
+files <- list.files(path, pattern = ".Rda$", recursive = TRUE)
+#integrate all of them in single list
+alldatalist.video_site.terinter_pa <- list()
+files_pres_abs = files[grep('pres_abs', files)]
+for(f in files_pres_abs)
+{
+  #print(f)
+  fobj <- load(paste(path,f,sep = "/"))
+  fobj <- get(fobj)
+  alldatalist.video_site.terinter_pa[[gsub("\\/.*","", f)]] <- fobj
+}
+
+# get alldatalist for bininter
+path= paste(root_path, paste("terBeam", "bininter", sep="_"), sep="/")
+files <- list.files(path, pattern = ".Rda$", recursive = TRUE)
+#integrate all of them in single list
+alldatalist.video_site.bininter_pa <- list()
+files_pres_abs = files[grep('pres_abs', files)]
+for(f in files_pres_abs)
+{
+  #print(f)
+  fobj <- load(paste(path,f,sep = "/"))
+  fobj <- get(fobj)
+  alldatalist.video_site.bininter_pa[[gsub("\\/.*","", f)]] <- fobj
+}
+
+# combine all results in one list
+alldatalist.video_site_pa = list()
+alldatalist.video_site_pa$bininter = alldatalist.video_site.bininter_pa
+alldatalist.video_site_pa$terinter = alldatalist.video_site.terinter_pa
+
+# Build a list to save the needed datasets for plotting
+digest.list_pa <- list()
+for (m in names(alldatalist.video_site_pa)) {
+    for (i in c("Barrier_vs_Bay", "Barrier_vs_Lagoon", "Bay_vs_Lagoon", "Offshore_vs_Inshore")) {
+      iobj <- alldatalist.video_site_pa[[m]][[i]][["digest"]]
+      #iterate over acc and auc tables in cv$scores (source of boxplot visualization in digest plots)
+      for(t in c("generalization.auc","generalization.acc"))
+      {
+        #print(t)
+        #Get the data
+        tdf <- iobj$cv$scores[[t]]
+        #exclude the na
+        tdf <- tdf[rowSums(!is.na(tdf))>0,]
+        #melt + process for plotting
+        tdf <- data.frame(parsimony = rownames(tdf), tdf)
+        tdf <- melt(tdf, id.vars = "parsimony")
+        #Add the comparison (the i)
+        tdf$comparison <- i
+        #Add the variable (here habitat)
+        tdf$source <- "Habitat"
+        # Add the algorithm
+        tdf$algorithm <- m
+        #Save
+        digest.list_pa[[t]][[i]][[m]] <- tdf
+      }
+      #iterate over the empirical performance data of best model in each prediction task (source of lineplot visualization in digest plots)
+      for(t in c("accuracy_","auc_","recall_","precision_"))
+      {
+        #print(t)
+        tdf <- data.frame(value=iobj$best$scores[[t]], 
+                          parsimony=names(iobj$best$scores[[t]]),
+                          comparison=i,
+                          source="Habitat",
+                          algorithm= m)
+        #Save
+        digest.list_pa[[t]][[i]][[m]] <- tdf
+      }
+    }
+    
+  }
+    
+  #For each sub-element in digest.list_pa, do the rbind of the dataframes of each binary prediction task
+  for (n in names(digest.list_pa)) {
+    digest.list_pa[[n]] <- lapply(digest.list_pa[[n]], function(x){do.call("rbind", x)})
+  }
+  #For each element in digest.list_pa, do the rbind of the dataframes of each binary prediction task
+  digest.list_pa <- lapply(digest.list_pa, function(x){do.call("rbind", x)})
+  
+  #Build the visualization plots, first boxplots of acc/auc across training/test CV data
+  digest.plots_pa <- list()
+  for(k in c("generalization.auc","generalization.acc"))
+  {
+    kdf <- digest.list_pa[[k]]
+    #Factorize the parsimony variable
+    kdf$comparison <- factor(kdf$comparison)
+    # kdf$comparison <- factor(kdf$comparison,
+    #                         levels = levels(kdf$parsimony)[order(as.numeric(gsub("k_","", levels(kdf$parsimony))))])
+    #Do the integrated plot (here the facet_grid(.~comparison) command stratifies the plot by comparison)
+    # plot by comparison
+    digest.plots_pa[[k]] <- ggplot(data = kdf, aes(y = value, x = comparison)) +
+      geom_point(aes(color = "dark"), position = position_jitterdodge(dodge.width = 0.9), size = 1, alpha = 0.5)+
+      geom_boxplot(notch = FALSE, outlier.colour = NA, position = position_dodge(width = 0.9), alpha = 0.5) +
+      ylab(gsub("^.*\\.","", k)) +
+      xlab("Comparison") +
+      ggtitle(gsub("\\..*$","", k)) +
+      #ylim(c(0,1)) +
+      facet_grid(.~algorithm) +
+      theme_bw() +
+      # geom_hline(yintercept = unique(maj.class),col = "gray", linetype = "dashed") +
+      theme(legend.position = "bottom",
+            legend.direction = "horizontal") +
+            guides(colour = "none") +
+      ##Paired wilcoxon tests btw classes
+  #stat_compare_means(method = "wilcox", comparisons = combn(x = as.character(unique(kdf$comparison)), m = 2, simplify = FALSE)) +
+      #stat_compare_means(method = "kruskal")+
+      theme(axis.text.x = element_text(angle=45, vjust = 1, hjust=1, size = 7)) #+
+      #theme(strip.text.x=element_text(angle=45, vjust = 1, hjust=1, size=4))
+  }
+  #Second, lineplots of empirical performances
+  for(i in c("accuracy_","auc_","recall_","precision_"))
+  {
+    idf <- digest.list_pa[[i]]
+    #Factorize the parsimony variable
+    idf$parsimony <- factor(idf$parsimony)
+    idf$parsimony <- factor(idf$parsimony,
+                            levels = levels(idf$parsimony)[order(as.numeric(gsub("k_","", levels(idf$parsimony))))])
+    #get the data for best model in each case as dataframe, save first in list for each comparison (1 dataframe per comparison, single line)
+    ibest <- list()
+    for(c in unique(idf$comparison))
+    {
+      ibest[['terinter']][[c]] <- data.frame(learner=alldatalist.video_site.terinter_ab[[c]]$digest$best$model$learner,
+                               language=alldatalist.video_site.terinter_ab[[c]]$digest$best$model$language,
+                               variable=alldatalist.video_site.terinter_ab[[c]]$digest$best$model[[i]], variable.source=i,
+                               k=length(alldatalist.video_site.terinter_ab[[c]]$digest$best$model$indices_),
+                               comparison=c)
+    ibest[['bininter']][[c]] <- data.frame(learner=alldatalist.video_site.bininter_ab[[c]]$digest$best$model$learner,
+                               language=alldatalist.video_site.bininter_ab[[c]]$digest$best$model$language,
+                               variable=alldatalist.video_site.bininter_ab[[c]]$digest$best$model[[i]], variable.source=i,
+                               k=length(alldatalist.video_site.bininter_ab[[c]]$digest$best$model$indices_),
+                               comparison=c)
+    }
+    
+    #do the rbind of the dataframes of each binary prediction task
+    ibest <- lapply(ibest, function(x){do.call("rbind", x)})
+  
+    #merge individual dataframes in single dataframe (rbind passed to do.call function + list ibest)
+    ibest <- do.call("rbind",ibest)
+    ibest$language <- as.factor(ibest$language)
+    #Add the labels that we want to visualize corresponding to the best model of each prediction task
+    ibest$label <- paste(ibest$comparison,"; L:", ibest$learner,"_", ibest$language,"; F:", signif(ibest$variable,2), "; K=", ibest$k, sep = "")
+    ibest$x <- (length(unique(idf$parsimony))+1)/2
+    ibest$y <- seq(1,nrow(ibest),1)/20
+    #do the integrated plot (colour lines and points by comparisons + add the infos for the best model in each comparison stored in the ibest table) + save
+    digest.plots_pa[[i]] <- ggplot(data = idf, aes(x = parsimony, y = value, group = 1)) +
+      geom_line(aes(group=comparison,color = comparison)) +
+      geom_point(size = 2, alpha = 1) +
+      geom_text(data=ibest, aes(x=x,y=y, label=label, colour=comparison), size=1.5, inherit.aes = FALSE) +
+      ylab(i) +
+      xlab("Model parsimony") +
+      ggtitle("Emprical performance") +
+      ylim(c(0,1)) +
+      theme_bw() +
+      facet_grid(.~algorithm) +
+      # geom_hline(yintercept = mean(maj.class), col = "gray", linetype = "dashed") +
+      theme(legend.position = "none",
+            legend.direction = "horizontal",
+            legend.title = element_blank()) #+
+      #theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size = 7))
+  }
+
+#Integrated visualization as in the output of digest function but now integrating all pairwise comparisons across levels of habitat variable
+pdf(file="/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/plots/models_performances_video_data_presence_absence.pdf", h=6, w=7)
+grid.arrange(#digest.plots_pa$empirical.auc,
+             digest.plots_pa$generalization.auc, 
+             #digest.plots_pa$empirical.acc, 
+             digest.plots_pa$generalization.acc, 
+             digest.plots_pa$auc_,
+             digest.plots_pa$accuracy_,
+             #digest.plots_pa$recall_,
+             #digest.plots_pa$precision_,
+            ncol=2, nrow=2)
+
+dev.off()
+```
+
+## Visualization of predomics results on TerBeam-terinter
+
+<!-- - As terinter was the one having the best performances comparing to bininter, we decide to show its indicator species with their feature importance, feature abondance as shown in cliffdelta and feature prevalence -->
+
+<!-- - In predomics FBM(Family of Best Models), we have 11 indicator species for Offshore (Barrier zone) and 15 for Inshore (BaAy + Lagoon) -->
+
+<!-- - The indicator species for Offshore are more important than those for Inshore based on their feature importance. -->
+
+```{r predomics results bininter, message=FALSE,results='hide', warning=FALSE, fig.height = 10, fig.width = 10, echo=FALSE}
+bruvs_terinter.fmbObj =list()
+for (i in names(alldatalist.video_site.terinter_pa)){
+  res_clf= alldatalist.video_site.terinter_pa[[i]]$fit
+  X= alldatalist.video_site.terinter_pa[[i]]$comparison_data$X_train
+  y= alldatalist.video_site.terinter_pa[[i]]$comparison_data$y_train
+  
+  bruvs_terinter.fmbObj[[i]] <- getImportanceFeaturesFBMobjects(clf_res = res_clf, X = X, y = y, verbose = TRUE)
+  #build list of objects to combine
+}
+# plot FBM + Feat import + CliffDelta + Feat prev
+pdf(file="/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/plots/fbm_featImport_CliffDelta_featPrev_terinter_pa_bruvs.pdf", h=8, w=12)
+plotImportanceFeaturesFBMobjects(FBMobjList = bruvs_terinter.fmbObj, verbose = TRUE, nb.top.features = 100, makeplot = FALSE)
+dev.off()
+
+```
+
+## Analyze the correlation between indicator value and Feature importance 
+
+<!-- - In the first figure, we can see a positive and highly significant correlation between the indicator value and feature importance for core species of Indval and predomics algorithms. -->
+<!-- - The core species **Nemipterus peronii** has the highest value of feature importance for bininter and a much lower value for the terinter model -->
+<!-- - The second figure shows that the core species for Indval-terinter or indval-bininter are the most abundant than those for each model separately. -->
+
+```{r Correlation ind_value and feat_import, message=FALSE,results='hide', warning=FALSE, fig.height = 5, fig.width = 10}
+# get indics_species from indval and terinter
+boxplot_list= list()
+scatterplot_list= list()
+scatterplot_stat_list <- list()
+for (i in c("DeepSlope_vs_Summit50", "DeepSlope_vs_Summit250", "DeepSlope_vs_Summit500", "Summit50_vs_Summit250", "Summit50_vs_Summit500", "Summit250_vs_Summit500" )) {
+
+  ind_ter_df= rbind(indval_species[[i]], terinter_species[[i]])
+  
+  ind_ter_df$color= ifelse(ind_ter_df$IsIndSpec==1 & ind_ter_df$IsInFBM.x==0,
+                                        -1, 
+                                        ifelse(ind_ter_df$IsIndSpec==1 & ind_ter_df$IsInFBM.x==1, 0, 1))
+  ind_ter_df$color <- factor(ind_ter_df$color, levels = c(-1,0,1))
+  
+  # get indics_species from indval and bininter
+  ind_bin_df= rbind(indval_species[[i]], bininter_species[[i]])
+  ind_bin_df$color= ifelse(ind_bin_df$IsIndSpec==1 & ind_bin_df$IsInFBM.y==0,
+                                        -1, 
+                                        ifelse(ind_bin_df$IsIndSpec==1 & ind_bin_df$IsInFBM.y==1, 0, 1))
+  ind_bin_df$color <- factor(ind_bin_df$color, levels = c(-1,0,1))
+  
+# basic scatterplot
+  ind_ter_df$color <- factor(ind_ter_df$color, levels=c(-1,0,1), labels = c("indVal-only","core indVal-terinter","terinter-only"))
+
+  indval.feat1 = ggplot(unique(ind_ter_df), aes(x=featImport.x, y=indicator_value)) +
+    geom_point(aes(color=color)) +
+    stat_cor(method = "spearman") +
+    #geom_text_repel(aes(label=label)) +
+    # coord_cartesian(xlim = c(0, 35))+
+    labs(x= "feature_importance", y= "indicator_value", title = "Indval vs terinter", color = "speciesPrev")
+
+  ind_bin_df$color <- factor(ind_bin_df$color, levels=c(-1,0,1), labels = c("indVal-only","core indVal-bininter","bininter-only"))
+  
+  indval.feat2 = ggplot(unique(ind_bin_df), aes(x=featImport.y, y=indicator_value)) +
+    geom_point(aes(color=color)) +
+    #geom_text_repel(aes(label=label)) +
+    stat_cor(method = "spearman") +
+    # coord_cartesian(xlim = c(0, 35))+
+    labs(x= "feature_importance", y= "indicator_value", title = "Indval vs bininter", color = "speciesPrev")
+
+  scatterplot_list[[i]] = grid.arrange(indval.feat1,
+               indval.feat2, nrow=2)
+  
+  ## Get the results of the spearman correlation test on dataframe for terinter comparison vs. indval
+  ind_ter_df.stat <- cor.test(ind_ter_df$featImport.x, ind_ter_df$indicator_value, method = "spearman")
+  ind_ter_df.stat.df <- data.frame(comparison=i,
+                                   predomicsModel="terinter",
+                                   rho=ind_ter_df.stat$estimate,
+                                   pval=ind_ter_df.stat$p.value)
+  ## Get the results of the spearman correlation test on dataframe for bininter comparison vs. indval
+  ind_bin_df.stat <- cor.test(ind_bin_df$featImport.y, ind_bin_df$indicator_value, method = "spearman")
+  ind_bin_df.stat.df <- data.frame(comparison=i,
+                                   predomicsModel="bininter",
+                                   rho=ind_bin_df.stat$estimate,
+                                   pval=ind_bin_df.stat$p.value)
+
+  ##Merge both in single df + save
+  i.statout.cor <- rbind(ind_ter_df.stat.df,
+                         ind_bin_df.stat.df)
+  scatterplot_stat_list[[i]] <- i.statout.cor
+  ##boxplot bininter feat imp
+  df.1 <- unique(ind_bin_df)
+  df.1.plot <- ggplot(df.1, aes(x=color, y=featImport.y)) +
+    geom_boxplot(outlier.shape = NA) +
+    geom_point(position = position_jitter(.05), alpha=.5) +
+    stat_compare_means(method = "wilcox", comparisons = combn(x = levels(df.1$color), m = 2, simplify = FALSE)) +
+    labs(x= "species_prev", y= "Feature importance") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+  ##boxplot bininter feat imp
+  df.2 <- unique(ind_ter_df)
+  df.2.plot <- ggplot(df.2, aes(x=color, y=featImport.x)) +
+    geom_boxplot(outlier.shape = NA) +
+    geom_point(position = position_jitter(.05), alpha=.5) +
+    stat_compare_means(method = "wilcox", comparisons = combn(x = levels(df.2$color), m = 2, simplify = FALSE)) +
+    labs(x= "species_prev", y= "Feature importance") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+  boxplot_list[[i]]= grid.arrange(df.2.plot + ggtitle("terinter"),
+               df.1.plot + ggtitle("bininter"), ncol=2)
+
+}
+
+##plot heatmap of spearman correlation analyses
+scatterplot_stat_list.df <- do.call("rbind",scatterplot_stat_list)
+scatterplot_stat_list.df$pval.cat <- ifelse(scatterplot_stat_list.df$pval<0.05,"*","")
+pdf(file="/data/projects/aime/analyses/metabarcoding/2.analyses_predomics/Prediction by Habitat/result_plots/correlation_indicator_featImport.pdf", h=5, w=6)
+heatmap <- ggplot(scatterplot_stat_list.df, aes(x=predomicsModel, y=comparison, fill=rho)) + 
+  geom_tile(colour="black") + 
+  geom_text(aes(label=pval.cat)) + 
+  scale_fill_gradient2()
+dev.off()
+
+pdf(file="/data/projects/aime/analyses/metabarcoding/2.analyses_predomics/Prediction by Habitat/result_plots/indval_featImport_DeepSlopeSummit250.pdf", h=5, w=6)
+grid.arrange(scatterplot_list$DeepSlope_vs_Summit250, nrow=2) + ggtitle("DeepSlope_vs_Summit250")
+dev.off()
+# plot scatterplot to see the correlation between indicator_value and feature importance on 
+
+# plot all the boxplot 
+
+```
+
+## Permutational Multivariate Analysis of Variance (PERMANOVA) with Bray-curtis and Jaccard distance matrix on video data
+
+- The **Habitat** variable is significant in explaining the grouping of species in communities for each set of species (community, indval, terinter, bininter) in abundance or presence/absence.
+- The Habitat variable expresses the most compositional variability in abundance or presence/absence for all the indicator species found in the analyses using the **bininter** model.
+- The second figure shows how much the indicator species of each model are important to explain the compositional variability than the community species.
+
+```{r Permanova analysis, fig.height=6, fig.width=10, message=FALSE, warning=FALSE, results='hide'}
+#compute bray-curtis distance for Barrier-Bay comp
+
+# load video data
+load("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/video_data_object.rda")
+
+# Load bruvs data from Barrier and Bay on terinter
+ter_Barrier_Bay <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/indicSpeciesPredomics/terBeam_terinter/IndicSpecies_predomicsResults_Barrier_Bay.csv", show_col_types = FALSE))
+ter_Barrier_Bay = filter(ter_Barrier_Bay, IsInFBM == 1)
+ter_Barrier_Bay = sm$X[rownames(sm$X) %in% ter_Barrier_Bay$Species, ]
+video_data.BarrierBay.bray <- vegdist(x = t(ter_Barrier_Bay), method = "bray")
+
+#identical(labels(video_data.BarrierBay.bray), rownames(sm$sample_info)) # the labels in bray distance matrix and rows in metadata table in sm object are identical
+
+# compute adonis2 on metadata with bray-curtis distance
+video_data.BarrierBay.bray.adonis2 <- adonis2(video_data.BarrierBay.bray ~ Zone, data = sm$sample_info, perm=999, by="terms")
+
+# compute jaccard distance matrix on Barrier_Bay data
+video_data.BarrierBay.jac <- vegdist(x = t(ter_Barrier_Bay), method = "jaccard", binary = TRUE)
+#identical(labels(video_data.BarrierBay.jac), rownames(sm$sample_info)) #same order of labels in bray distance and samples in metadata
+
+# compute adonis2 on metadata with jaccard distance
+video_data.BarrierBay.jac.adonis2 <- adonis2(video_data.BarrierBay.jac ~ Zone, data = sm$sample_info, by="margin")
+
+#compute bray-curtis distance on Barrier_Lagoon
+ter_Barrier_Lagoon <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/indicSpeciesPredomics/terBeam_terinter/IndicSpecies_predomicsResults_Barrier_Lagoon.csv", show_col_types = FALSE))
+ter_Barrier_Lagoon = filter(ter_Barrier_Lagoon, IsInFBM == 1)
+ter_Barrier_Lagoon= sm$X[rownames(sm$X) %in% ter_Barrier_Lagoon$Species, ]
+video_data.BarrierLagoon.bray <- vegdist(x = t(ter_Barrier_Lagoon), method = "bray")
+
+#identical(labels(video_data.BarrierLagoon.bray), rownames(sm$sample_info)) # the labels in bray distance matrix and rows in metadata table in sm object are identical
+
+# compute adonis2 on metadata with bray-curtis distance
+video_data.BarrierLagoon.bray.adonis2 <- adonis2(video_data.BarrierLagoon.bray ~ Zone, data = sm$sample_info, perm=999, by="terms")
+
+# compute jaccard distance matrix on Barrier_Lagoon
+video_data.BarrierLagoon.jac <- vegdist(x = t(ter_Barrier_Lagoon), method = "jaccard", binary = TRUE)
+#identical(labels(indval_data.jac), rownames(sm$sample_info)) #same order of labels in bray distance and samples in metadata
+
+# compute adonis2 on metadata with jaccard distance
+video_data.BarrierLagoon.jac.adonis2 <- adonis2(video_data.BarrierLagoon.jac ~ Zone, data = sm$sample_info, by="margin")
+
+#compute bray-curtis distance on Bay_Lagoon
+ter_Bay_Lagoon <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/indicSpeciesPredomics/terBeam_terinter/IndicSpecies_predomicsResults_Bay_Lagoon.csv", show_col_types = FALSE))
+ter_Bay_Lagoon = filter(ter_Bay_Lagoon, IsInFBM == 1)
+ter_Bay_Lagoon = sm$X[rownames(sm$X) %in% ter_Bay_Lagoon$Species, ]
+# Remove columns with colSums equal to 0
+ter_Bay_Lagoon_filtered <- ter_Bay_Lagoon[, colSums(ter_Bay_Lagoon) != 0]
+# get sample info only for sample with ColSums different to 0
+sample_info_filtered = sm$sample_info[rownames(sm$sample_info) %in% colnames(ter_Bay_Lagoon_filtered),]
+video_data.BayLagoon.bray <- vegdist(x = t(ter_Bay_Lagoon_filtered), method = "bray")
+
+#identical(labels(video_data.BayLagoon.bray), rownames(sample_info_filtered)) # the labels in bray distance matrix and rows in metadata table in sm object are identical
+
+# compute adonis2 on metadata with bray-curtis distance
+video_data.BayLagoon.bray.adonis2 <- adonis2(video_data.BayLagoon.bray ~ Zone, data = sample_info_filtered, perm=999, by="terms")
+
+# compute jaccard distance matrix on Bay_Lagoon
+video_data.BayLagoon.jac <- vegdist(x = t(ter_Bay_Lagoon_filtered), method = "jaccard", binary = TRUE)
+#identical(labels(video_data.BayLagoon.jac), rownames(sm$sample_info)) #same order of labels in bray distance and samples in metadata
+
+# compute adonis2 on metadata with jaccard distance
+video_data.BayLagoon.jac.adonis2 <- adonis2(video_data.BayLagoon.jac ~ Zone, data = sample_info_filtered, by="margin")
+
+#compute bray-curtis distance
+ter_Offshore_Inshore <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/indicSpeciesPredomics/terBeam_terinter/IndicSpecies_predomicsResults_Offshore_Inshore.csv", show_col_types = FALSE))
+ter_Offshore_Inshore = filter(ter_Offshore_Inshore, IsInFBM == 1) 
+ter_Offshore_Inshore = sm$X[rownames(sm$X) %in% ter_Offshore_Inshore$Species, ]
+video_data.OffshoreInshore.bray <- vegdist(x = t(ter_Offshore_Inshore), method = "bray")
+
+#identical(labels(video_data.OffshoreInshore.bray), rownames(sm$sample_info)) # the labels in bray distance matrix and rows in metadata table in sm object are identical
+
+# compute adonis2 on metadata with bray-curtis distance
+video_data.OffshoreInshore.bray.adonis2 <- adonis2(video_data.OffshoreInshore.bray ~ Habitat, data = sm$sample_info, perm=999, by="terms")
+
+# compute jaccard distance matrix on Offshore_Inshore
+
+video_data.OffshoreInshore.jac <- vegdist(x = t(ter_Offshore_Inshore), method = "jaccard", binary = TRUE)
+#identical(labels(video_data.OffshoreInshore.jac), rownames(sm$sample_info)) #same order of labels in bray distance and samples in metadata
+
+# compute adonis2 on metadata with jaccard distance
+video_data.OffshoreInshore.jac.adonis2 <- adonis2(video_data.OffshoreInshore.jac ~ Habitat, data = sm$sample_info, by="margin")
+
+
+permanova.list =list()
+
+permanova.list[["bray"]][["Barrier_Bay"]]= video_data.BarrierBay.bray.adonis2
+permanova.list[["jaccard"]][["Barrier_Bay"]]= video_data.BarrierBay.jac.adonis2
+permanova.list[["bray"]][["Barrier_Lagoon"]]= video_data.BarrierLagoon.bray.adonis2
+permanova.list[["jaccard"]][["Barrier_Lagoon"]]= video_data.BarrierLagoon.jac.adonis2
+permanova.list[["bray"]][["Bay_Lagoon"]]= video_data.BayLagoon.bray.adonis2
+permanova.list[["jaccard"]][["Bay_Lagoon"]]= video_data.BayLagoon.jac.adonis2
+permanova.list[["bray"]][["Offshore_Inshore"]]= video_data.OffshoreInshore.bray.adonis2
+permanova.list[["jaccard"]][["Offshore_Inshore"]]= video_data.OffshoreInshore.jac.adonis2
+
+permanova.df.list= list()
+## create a data frame for permanova test results
+for (j in names(permanova.list)) {
+  for (k in c("Barrier_Bay", "Barrier_Lagoon", "Bay_Lagoon", "Offshore_Inshore")) {
+    result= permanova.list[[j]][[k]]
+    permanova.df <- data.frame(result$R2)
+    colnames(permanova.df) <- c("r2")
+    permanova.df$var <- rownames(result)
+    permanova.df$p.val <- result$`Pr(>F)`
+    
+    ## remove residual and total from the data frame
+    permanova.df <- permanova.df[!(permanova.df$var) %in% c('Residual','Total'),]
+    permanova.df$comparison <- k
+    permanova.df$distance <- j
+    
+    ## save dataframes in the list
+    
+  permanova.df.list[[j]][[k]] = permanova.df
+  }
+}
+
+#For each element in permanova.df.list, do the rbind of the dataframes of each binary prediction task
+permanova.df.list <- lapply(permanova.df.list, function(x){do.call("rbind", x)})
+
+#merge individual dataframes in single dataframe 
+permanova.df <- do.call("rbind",permanova.df.list)
+
+permanova.df$colour <- ifelse(permanova.df$p.val<=0.001,"blue","red")
+
+# barplot of pemonova by r2 
+pdf(file="/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/plots/permanova_analysis_by_site.pdf", h=5, w=6)
+ggplot(data=permanova.df, aes(x=comparison, y=r2, color=colour)) +
+  geom_bar(stat="identity", fill="lightblue")+
+  geom_text(aes(label=ifelse(p.val <= 0.001, "**" , ifelse(p.val <= 0.05, "*" , " " ))), vjust=-0.3, size=3.5,nudge_y=-0.0003)+ theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  scale_color_manual(values = c('blue', 'red'), labels =  c( 'pval <= 0.001', 'pval > 0.001 & pval <=0.05')) +
+  labs(color = "Significativity") + scale_y_continuous(name="r2", limits=c(0, 0.4)) +
+  facet_grid(.~distance)
+dev.off()
+
+```
+
+## Conclusion
+ During these analysis, we used different methods to get indicator species for the community such as: Indval method, predomics model with Terbeam algorithm and the languages (terinter and binter). We made a comparison between all those methods and we can conclude that indicator species for the bininter model has the best explanation for compositional variability and are the best to indicates each of the different habitats of the community.

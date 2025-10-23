@@ -1,0 +1,397 @@
+---
+title: "data_map_adne"
+author: "Estephe Kana, Eugeni Belda & Edi Prifti"
+date: "`r Sys.Date()`"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r load packages, include=FALSE}
+if (!require("readr")) install.packages("readr"); library(readr)
+if (!require("pheatmap")) install.packages("pheatmap"); library(pheatmap)
+#if (!require("ggplot2")) install.packages("ggplot2"); library(ggplot2)
+if (!require("sf")) install.packages("sf"); library(sf)
+if (!require("vegan")) install.packages("vegan"); library(vegan)
+if (!require("gridExtra")) install.packages("gridExtra"); library(gridExtra)
+if (!require("reshape2")) install.packages("reshape2"); library(reshape2)
+#if (!require("patchwork")) install.packages("patchwork"); library(patchwork)
+if(!require("ggspatial")) install.packages("ggspatial") ; library(ggspatial)
+if(!require("maps")) install.packages("maps") ; library(maps)
+if(!require("rnaturalearth")) install.packages("rnaturalearth") ; library(rnaturalearth)
+if(!require("ggrepel")) install.packages("ggrepel") ; library(ggrepel)
+if(!require("prettymapr")) install.packages("prettymapr") ; library(prettymapr)
+if(!require("viridis")) install.packages("viridis") ; library(viridis)
+if(!require("dplyr")) install.packages("dplyr") ; library(dplyr)
+if(!require("ggOceanMaps")) install.packages("ggOceanMaps") ; library(ggOceanMaps)
+if(!require("ggOceanMapsData")) install.packages("ggOceanMapsData") ; library(ggOceanMapsData)
+library(ggplot2)
+library(patchwork)
+```
+
+## Mapview and heatmap of BRUVS data
+
+```{r bruvs data mapview + heatmap + richness + shannon_diversity, echo=FALSE}
+## Mapview and heatmap of enironmental data of BRUVS
+# get environmental data
+env_bruvs_df <- as.data.frame(read.csv("environmental_data_lagoon_2016_60_samples.csv", sep = ";"))
+
+# env_bruvs_df$Habitat <- ifelse(env_bruvs_df$Site %in% c("Bay","Lagoon"), "Inshore", "Offshore") 
+env_bruvs_sf <- st_as_sf(env_bruvs_df, coords = c('Longitude', 'Latitude'), crs=4326)
+
+# Use the bounding box of the sample points to set the map extent
+bbox <- st_bbox(env_bruvs_sf)
+buffer <- 0.045 # Adjust buffer as needed for sufficient zoom out
+bbox_expanded <- bbox + c(-buffer, -buffer, buffer, buffer)
+
+# Using built-in world map data; subset to oceania and new caledonia card
+world <- ne_countries(scale="medium", continent = "oceania", country = "new caledonia", returnclass = "sf")
+
+## Add labels for regions
+states <- st_as_sf(map("world", regions = "new caledonia", plot = FALSE, fill = TRUE))
+states <- cbind(states, st_coordinates(st_centroid(states)))
+
+world_cropped <- st_crop(world, bbox_expanded)
+# Increase latitude range to make the map taller
+lat_expansion <- 0.065  # Adjust this value based on your plot's alignment
+long_expansion <- 0.065
+
+# Modify bbox_expanded manually
+bbox_expanded["ymin"] <- bbox["ymin"] - lat_expansion
+bbox_expanded["ymax"] <- bbox["ymax"] + lat_expansion
+bbox_expanded["xmin"] <- bbox["xmin"] - long_expansion
+bbox_expanded["xmax"] <- bbox["xmax"] + long_expansion
+
+env_bruvs_df$Site <- factor(env_bruvs_df$Site, levels = c("Bay", "Lagoon", "Barrier"))
+
+env_bruvs_df$Transect <- iconv(env_bruvs_df$Transect, from = "UTF-8", to = "latin1")
+
+p1 <- ggplot() +
+  annotation_map_tile(data = world_cropped, type = "osm") +
+  geom_point(
+    data = env_bruvs_df, 
+    aes(x = Longitude, y = Latitude, color = Site, shape = Transect),  # Use `color` instead of `fill`
+    size = 4,          # Increase point size
+    stroke = 1,        # Border thickness (only works for some shapes)
+    alpha = 0.8        # Adjust transparency if needed
+  ) +
+  scale_color_manual(values = c("Bay" = "#f5572e", "Lagoon" = "#01d7a1", "Barrier" = "#6d5de6")) + # Use color
+  scale_shape_manual(values = c(16, 17, 18)) +  # Define distinct shapes (modify as needed)
+  geom_text_repel(
+    data = states, 
+    aes(X, Y, label = ID), 
+    size = 7
+  ) +
+  coord_sf(
+    xlim = c(bbox_expanded["xmin"], bbox_expanded["xmax"]), 
+    ylim = c(bbox_expanded["ymin"], bbox_expanded["ymax"]), 
+    expand = FALSE
+  ) +
+  theme_minimal() +
+  labs(
+    x = "Longitude", 
+    y = "Latitude", 
+    color = "Site",  # Change legend label to match `color`
+    shape = "Transect"
+  ) +
+  theme(
+    axis.title = element_text(size = 14),        
+    legend.text = element_text(size = 12),       
+    legend.title = element_text(size = 14),       
+    legend.position = "right"
+  )
+ 
+#save the map to a pdf
+pdf(file="/data/projects/aime/analyses/bruvs/Figure1_Update_EK/mapview_env_bruvs.pdf", h=6, w=9)
+p1
+dev.off()
+
+
+# Function to get sample data by prevalence: seems to be the predomics function indeed
+get_sample_by_prevalence <- function(abundance_matrix, prevalence_rate) {
+  
+  # Print the prevalence rate message
+  message(paste("Prevalence rate set to:", paste0(prevalence_rate, "%")))
+  
+  # Scale the prevalence rate to the range [0, 1]
+  prevalence_rate <- prevalence_rate / 100
+  
+  # Check if prevalence rate is between 0 and 1
+  if (prevalence_rate == 0) {
+    message("You are using the overall data without any filtering.")
+  }
+  if (prevalence_rate == 1) {
+    message("You are using species that appear in all samples.")
+  }
+  if (prevalence_rate < 0 || prevalence_rate > 1) {
+    stop("Prevalence rate must be between 0 and 1.")
+  }
+  
+  # Get the number of samples (rows) - fixed from columns to rows
+  num_samples <- nrow(abundance_matrix)
+  
+  # Calculate the minimum number of non-zero occurrences required
+  min_occurrences <- ceiling(prevalence_rate * num_samples)
+  
+  # Select columns (features) that meet the prevalence threshold
+  valid_features <- colSums(abundance_matrix > 0) >= min_occurrences
+  
+  # Subset the abundance matrix based on valid features
+  sampled_matrix <- abundance_matrix[, valid_features, drop = FALSE]
+  
+  # Remove samples (rows) that don't have any non-zero values
+  sampled_matrix <- sampled_matrix[rowSums(sampled_matrix > 0) > 0, ]
+  
+  # Return the filtered matrix
+  return(sampled_matrix)
+}
+
+# heatmap for video data
+load(file='video_data_object.rda')
+
+# video_data_abund <- sm$sample_info
+# data_pres <- ifelse(sm$X>0, 1, 0)
+# video_data_abund$richness <- colSums(sm$X>0)
+sm$sample_info$Zone[sm$sample_info$hab %in% "BAR"] <- "Barrier"
+sm$sample_info$Zone[sm$sample_info$hab %in% "BAY"] <- "Bay"
+sm$sample_info$Zone[sm$sample_info$hab %in% "LAG"] <- "Lagoon"
+
+#Get the raw data for the heatmap
+dfaims <- sm$X
+#Get the metadata for the heatmap
+dfaims_meta <- sm$sample_info
+#Get taxo info for species
+dfaims_taxo <- sm$db_long
+length(which(is.na(match(rownames(dfaims), dfaims_taxo$G_SP))))
+dfaims_taxo <- dfaims_taxo[dfaims_taxo$G_SP %in% rownames(dfaims),]
+dfaims_taxo <- unique(dfaims_taxo[,c("G_SP","Family","Genus","TrophicG")])
+rownames(dfaims_taxo) <- dfaims_taxo$G_SP ; dfaims_taxo <- dfaims_taxo[,-1]
+dfaims_sqrt <- apply(dfaims, 2, function(x){sqrt(x)})
+
+### Make the heatmap on ggplot
+dfaims_sqrt_melt <- as.data.frame(dfaims_sqrt)
+dfaims_sqrt_melt$feature <- rownames(dfaims_sqrt_melt)
+dfaims_sqrt_melt <- melt(dfaims_sqrt_melt)
+#Get the hclust ward.D on complete distance
+dfaims_sqrt_clust.sp <- hclust(dist(dfaims_sqrt, method = "euclidean"), method = "ward.D") #cluster species with ward method from euclidean distances
+dfaims_sqrt_clust.samples <- hclust(dist(t(dfaims_sqrt), method = "euclidean"), method = "ward.D") #cluster samples with ward method from euclidean distances
+#Fix the samples and species order from the clustering results in the melted object
+dfaims_sqrt_melt$feature <- factor(dfaims_sqrt_melt$feature, levels = dfaims_sqrt_clust.sp$labels[dfaims_sqrt_clust.sp$order])
+dfaims_sqrt_melt$variable <- factor(dfaims_sqrt_melt$variable, levels = dfaims_sqrt_clust.samples$labels[dfaims_sqrt_clust.samples$order])
+dfaims_sqrt_melt <- merge(dfaims_sqrt_melt, dfaims_meta[,c("hab","Habitat", "Zone")], by.x="variable", by.y=0, all.x=TRUE)
+dfaims_taxo$feature <- rownames(dfaims_taxo)
+dfaims_sqrt_melt <- merge(dfaims_sqrt_melt, dfaims_taxo[,c("Family","Genus", "TrophicG")], by.x="feature", by.y=0, all.x=TRUE)
+
+# get samples with species at least 10% prev: HERE WAS THE PROBLEM=>NEED TO TRANSPOSE THE MATRIX TO SAMPLES X FEATURE AS ENTRY
+# dfaims_10_prev_species= get_sample_by_prevalence(dfaims, 10)
+dfaims_10_prev_species= get_sample_by_prevalence(t(dfaims), 10) #here now we have the matrix of 34 species present in at least 10% of the 60 samples 
+
+
+# Add prevalence tag "prev<10" or "prev>=10" to each feature
+
+dfaims_sqrt_melt$prev_rate <- ifelse(dfaims_sqrt_melt$feature %in% colnames(dfaims_10_prev_species), "prev>=10",
+                                     ifelse(!(dfaims_sqrt_melt$feature %in% colnames(dfaims_10_prev_species)), "prev<10",
+                                            NA)
+                                     )
+
+
+# Factorize prev_rate
+dfaims_sqrt_melt$prev_rate= as.factor(dfaims_sqrt_melt$prev_rate)
+library(ggh4x)
+p2 <- ggplot(dfaims_sqrt_melt, aes(x=variable, y=feature, fill=value)) +
+  geom_tile(colour=NA) +
+  #scale_fill_viridis(option = "D") +
+  #scale_fill_viridis(option = "C") +
+  scale_fill_gradient(low = "white", high = c("#377eb8", "#4daf4a", "#f1bc8a", "#984ea3")) +
+  ylab("Features (species)") +
+  labs(fill="Sqrt of species abundance") +
+  #facet_grid(Family~Habitat+Zone, scales = "free", space = "free_x") +
+  facet_nested(prev_rate~Habitat+Zone, scales = "free", space = "free") +
+  theme(axis.text.x = element_blank(),
+        legend.position = "left",
+        legend.title = element_text(color = "black", size = 14, angle= 90, margin = ggplot2::margin(0,1,0.5,0,"cm"), vjust = 0.5, hjust=0.5),
+        axis.title.x = element_blank(),
+        axis.title.y = element_text(size=14),
+        axis.ticks.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        strip.text = element_text(size = 12))
+        #strip.text.y = element_text(margin = margin(1,0.5,1,0.5,"cm"), angle = 0, vjust = 0.5, hjust=0.7))
+
+# pdf(file="/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/1.Article_figures/fig1/species_abundance_heatmap3.pdf", h=12, w=10)
+# p2
+# dev.off()
+
+# plot species that appear on multiple sample
+
+# filtered_dfaims_sqrt_melt <- dfaims_sqrt_melt %>%
+#   filter(value > 0) %>%
+#   group_by(feature) %>%
+#   filter(n() > 1) %>%
+#   ungroup()
+# 
+# g2 <- ggplot(filtered_dfaims_sqrt_melt, aes(x=variable, y=feature, fill=value)) + 
+#   geom_tile(colour=NA) + 
+#   #scale_fill_viridis() +
+#   scale_fill_gradient(low = "gray", high = viridis::viridis(10)) + 
+#   ylab("species") + 
+#   labs(fill="Species Abundance") + 
+#   #facet_grid(Family~Habitat+Zone, scales = "free", space = "free_x") +
+#   facet_grid(Family~Habitat+Zone, scales = "free", space = "free") +
+#   theme(axis.text.x = element_blank(),
+#         axis.title.x = element_blank(),
+#         axis.ticks.x = element_blank(),
+#         #axis.text.y = element_blank(),
+#         axis.ticks.y = element_blank())+
+#   theme(strip.text.y = element_text(margin = margin(1,0.5,1,0.5,"cm"), angle = 0, vjust = 0.5, hjust=0.7, size = 5))
+# 
+# pdf(file="/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/1.Article_figures/fig1/species_abundance_heatmap_g2.pdf", h=12, w=10)
+# g2
+# dev.off()
+
+## load presence/absence data for video
+load(file='video_data_object_pres_abs.rda')
+
+sm$sample_info$Zone[sm$sample_info$hab %in% "BAR"] <- "Barrier"
+sm$sample_info$Zone[sm$sample_info$hab %in% "BAY"] <- "Bay"
+sm$sample_info$Zone[sm$sample_info$hab %in% "LAG"] <- "Lagoon"
+#Get the raw data for the pheatmap on pres/abs
+dfpresabs <- sm$X
+#Get the metadata for the pheatmap
+dfpresabs_meta <- sm$sample_info
+#Get taxo info for species
+dfpresabs_taxo <- sm$db_long
+length(which(is.na(match(rownames(dfpresabs), dfpresabs_taxo$G_SP))))
+dfpresabs_taxo <- dfpresabs_taxo[dfpresabs_taxo$G_SP %in% rownames(dfpresabs),]
+dfpresabs_taxo <- unique(dfpresabs_taxo[,c("G_SP","Family","Genus","TrophicG")])
+rownames(dfpresabs_taxo) <- dfpresabs_taxo$G_SP ; dfpresabs_taxo <- dfpresabs_taxo[,-1]
+
+### plot heatmap with ggplot2
+dfpresabs_melt <- as.data.frame(dfpresabs)
+dfpresabs_melt$feature <- rownames(dfpresabs_melt)
+dfpresabs_melt <- melt(dfpresabs_melt)
+#Get the hclust ward.D on complete distance
+dfpresabs_clust.sp <- hclust(dist(dfpresabs, method = "euclidean"), method = "ward.D") #cluster species with ward method from euclidean distances
+dfpresabs_clust.samples <- hclust(dist(t(dfpresabs), method = "euclidean"), method = "ward.D") #cluster samples with ward method from euclidean distances
+#Fix the samples and species order from the clustering results in the melted object
+dfpresabs_melt$feature <- factor(dfpresabs_melt$feature, levels = dfpresabs_clust.sp$labels[dfpresabs_clust.sp$order])
+dfpresabs_melt$variable <- factor(dfpresabs_melt$variable, levels = dfpresabs_clust.samples$labels[dfpresabs_clust.samples$order])
+dfpresabs_melt <- merge(dfpresabs_melt, dfpresabs_meta[,c("hab","Habitat","Zone")], by.x="variable", by.y=0, all.x=TRUE)
+
+#richness barplot
+dfpresabs_meta$richness <- colSums(dfpresabs>0)
+dfpresabs_richness <- dfpresabs_meta[,c("richness","Habitat","Zone"),drop=FALSE]
+dfpresabs_richness$sample <- rownames(dfpresabs_richness)
+dfpresabs_richness$sample <- factor(dfpresabs_richness$sample, levels=dfpresabs_clust.samples$labels[dfpresabs_clust.samples$order])
+
+dfpresabs_richness$Zone <- factor(dfpresabs_richness$Zone, levels = c("Bay", "Lagoon", "Barrier"))
+
+p3 <- ggplot(dfpresabs_richness, aes(x=sample, y=richness, fill=Zone)) + 
+  geom_bar(stat = "identity") + 
+  xlab("samples (site)") +
+  labs(fill="Site") +
+  facet_nested(.~Habitat+Zone, scales = "free",space = "free") + 
+  theme_bw() + 
+  scale_fill_manual(values = c("#f5572e", "#01d7a1", "#6d5de6"))+
+  theme(axis.text.x = element_blank(),
+        # axis.text.y = element_blank(),
+        axis.ticks.x = element_blank(),
+        # axis.ticks.y = element_blank(),
+        strip.background = element_rect(fill = "transparent", color = NA),
+        strip.text = element_text(color = "transparent"),
+        legend.position = "bottom")
+
+###########
+# NMDS
+###########
+library(vegan)
+library(dplyr)
+
+# load the data
+load(file="video_data_object.rda")
+
+#10% prevalence filter
+tsp <- rowSums(sm$X>0)/ncol(sm$X)
+length(which(tsp>=.1)) ##34 species at >=10% prevalence
+tsp <-names(tsp)[tsp>=.1]
+
+df.all <- sm$X
+df.filt <- df.all[tsp,]
+
+# compute nmds
+nmds.df.all= metaMDS(df.all, distance = "bray")
+nmds.df.filt= metaMDS(df.filt, distance = "bray")
+
+# plot 
+nmds.df.all.df <- data.frame(nmds.df.all$species)
+nmds.df.all.df <- merge(nmds.df.all.df, sm$sample_info, by=0, all.x=TRUE)
+nmds.df.all.df$Site <- gsub("BAR|BAY|LAG","", nmds.df.all.df$Site)
+nmds.df.all.df$source <- "All community"
+
+nmds.df.filt.df <- data.frame(nmds.df.filt$species)
+nmds.df.filt.df <- merge(nmds.df.filt.df, sm$sample_info, by=0, all.x=TRUE)
+nmds.df.filt.df$Site <- gsub("BAR|BAY|LAG","", nmds.df.filt.df$Site)
+nmds.df.filt.df$source <- "Prevalence >=10%"
+
+nmds.df.all.all <- rbind(nmds.df.all.df,nmds.df.filt.df)
+nmds.df.all.all$Zone <- factor(nmds.df.all.all$Zone, levels = c("Bay", "Lagoon", "Barrier"))
+nmds.df.all.all$Transect <- ifelse(nmds.df.all.all$Site=="A", "Aboré", "Mbéré")
+nmds.df.all.all$Transect <- iconv(nmds.df.all.all$Transect, from = "UTF-8", to = "latin1")
+
+p4 <- ggplot(data = nmds.df.all.all, aes(x = MDS1, y = MDS2, colour = Zone, shape = Transect)) +
+      geom_point(aes(), size = 4, alpha = 0.5) +
+      stat_ellipse(aes(fill = Zone, colour=Zone), geom = "polygon", alpha = 0.1) +
+      scale_color_manual(values = c("Bay" = "#f5572e", "Lagoon" = "#01d7a1", "Barrier" = "#6d5de6")) +
+      scale_fill_manual(values = c("Bay" = "#f5572e", "Lagoon" = "#01d7a1", "Barrier" = "#6d5de6")) +
+      facet_wrap(~source, ncol = 2, scales = "free") +
+      labs(colour = "Site", fill = "Site", shape = "Transect") +
+      theme_bw()
+
+layout2 =
+"AABB
+ AABB
+ AABB
+ AABB
+ AABB
+ DDBB
+ DDCC"
+
+# save heatmap of abundance of species + species richness + integrate map after on inkscape
+pdf(file="/data/projects/aime/analyses/bruvs/Figure1_Update_EK/Figure1_addNMDS.pdf", h=9, w=16)
+p1 + p2 + p3 + p4 + plot_layout(design = layout2) + plot_annotation(tag_levels = "A")
+dev.off()
+
+# # Create a layout matrix based on your layout
+# layout_matrix <- rbind(
+#   c(1, 1, 2, 2),
+#   c(1, 1, 2, 2),
+#   c(1, 1, 2, 2),
+#   c(1, 1, 2, 2),
+#   c(4, 4, 3, 3),
+#   c(4, 4, 3, 3)
+# )
+# 
+# #Use grid.arrange with the layout_matrix
+# grid.arrange(p1 + ggtitle("A"), 
+#              p2 + ggtitle("B"), 
+#              p3 + ggtitle("C"), 
+#              p4 + ggtitle("D"), 
+#              layout_matrix = layout_matrix)
+
+# # combined_plot <- wrap_plots(plot_spacer(),
+# #                             wrap_elements(p2),
+# #                             wrap_elements(p3),
+# #                             wrap_elements(p4), design = layout2) +
+# #                 plot_annotation(tag_levels = "A")
+# 
+# # save heatmap of map + integrate map after on inkscape
+# pdf(file="/data/projects/aime/analyses/bruvs/Figure1_Update_EK/Figure1_addNMDS.pdf", h=8, w=15)
+# grid.arrange(p1 + ggtitle("A"), 
+#              p2 + ggtitle("B"), 
+#              p3 + ggtitle("C"), 
+#              p4 + ggtitle("D"), 
+#              layout_matrix = layout_matrix)
+# dev.off()
+
+```
+

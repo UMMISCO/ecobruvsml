@@ -1,0 +1,544 @@
+---
+title: "Permanova analysis"
+author: "Estephe Kana, Eugeni Belda & Edi Prifti"
+date: "`r Sys.Date()`"
+output:
+  word_document: default
+  html_document: default
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Loading packages
+
+```{r load the packages, message=FALSE, warning=FALSE}
+library(readr) # for data import
+library(momr) # for normalizing, visualizing and microbiome analyses
+library(ggplot2) # for plots
+library(gridExtra) # for multiple plots
+library(vegan) # for ecological analyses
+library(viridis) # for colour maps
+library(stats) # for euclidean distance computation
+library(predomics) # loading predomics
+library(patchwork) # to display multiples graphs in the same figure
+library(dplyr)
+library(plyr)
+library(ggrepel)
+library(labdsv) # for Indicator Species Analysis
+library(reshape)
+library(ggVennDiagram)
+library(ggpubr)
+```
+
+## Permutational Multivariate Analysis of Variance (PERMANOVA) with Bray-curtis and Jaccard distance matrix on video data
+
+- The **Habitat** variable is significant in explaining the grouping of species in communities for each set of species (community, indval, terinter, bininter) in abundance or presence/absence.
+- The Habitat variable expresses the most compositional variability in abundance or presence/absence for all the indicator species found in the analyses using the **bininter** model.
+- The second figure shows how much the indicator species of each model are important to explain the compositional variability than the community species.
+
+```{r Permanova analysis, fig.height=6, fig.width=10, message=FALSE, warning=FALSE, results='hide'}
+#compute bray-curtis distance for Barrier-Bay comp
+
+## Permutational Multivariate Analysis of Variance (PERMANOVA) with Bray-curtis and Jaccard distance matrix on video data by inshore/offshore
+
+# load video data
+load("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/video_data_object.rda")
+
+#compute bray-curtis distance
+video_data.bray <- vegdist(x = t(sm$X), method = "bray")
+
+#identical(labels(video_data.bray), rownames(sm$sample_info)) # the labels in bray distance matrix and rows in metadata table in sm object are identical
+
+# compute adonis2 on metadata with bray-curtis distance
+video_data.bray.adonis2 <- adonis2(video_data.bray ~ Habitat, data = sm$sample_info, perm=999, by="terms")
+
+# compute jaccard distance matrix
+video_data.jac <- vegdist(x = t(sm$X), method = "jaccard", binary = TRUE)
+#identical(labels(video_data.jac), rownames(sm$sample_info)) #same order of labels in bray distance and samples in metadata
+
+# compute adonis2 on metadata with jaccard distance
+video_data.jac.adonis2 <- adonis2(video_data.jac ~ Habitat, data = sm$sample_info, by="margin")
+
+# select data for indval species 
+df1 <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/indicsSpeciesIndval/InValSpecies_video_data.csv", show_col_types = FALSE))
+indval_data = filter(df1, IsIndSpec == 1)
+indval_data = sm$X[rownames(sm$X) %in% indval_data$Species, ]
+
+#compute bray-curtis distance
+indval_data.bray <- vegdist(x = t(indval_data), method = "bray")
+
+#identical(labels(indval_data.bray), rownames(sm$sample_info)) # the labels in bray distance matrix and rows in metadata table in sm object are identical
+
+# compute adonis2 on metadata with bray-curtis distance
+indval_data.bray.adonis2 <- adonis2(indval_data.bray ~ Habitat, data = sm$sample_info, perm=999, by="terms")
+
+# compute jaccard distance matrix
+indval_data.jac <- vegdist(x = t(indval_data), method = "jaccard", binary = TRUE)
+#identical(labels(indval_data.jac), rownames(sm$sample_info)) #same order of labels in bray distance and samples in metadata
+
+# compute adonis2 on metadata with jaccard distance
+indval_data.jac.adonis2 <- adonis2(indval_data.jac ~ Habitat, data = sm$sample_info, by="margin")
+
+# select data for terinter species
+df2 <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/indicSpeciesPredomics/terBeam_terinter/IndicSpeciesPredomics_terBeam_terinter.csv", show_col_types = FALSE))
+terinter_data = filter(df2, IsInFBM == 1)
+terinter_data = sm$X[rownames(sm$X) %in% terinter_data$Species, ]
+
+#compute bray-curtis distance
+terinter_data.bray <- vegdist(x = t(terinter_data), method = "bray")
+
+#identical(labels(terinter_data.bray), rownames(sm$sample_info)) # the labels in bray distance matrix and rows in metadata table in sm object are identical
+
+# compute adonis2 on metadata with bray-curtis distance
+terinter_data.bray.adonis2 <- adonis2(terinter_data.bray ~ Habitat, data = sm$sample_info, perm=999, by="terms")
+
+# compute jaccard distance matrix
+terinter_data.jac <- vegdist(x = t(terinter_data), method = "jaccard", binary = TRUE)
+#identical(labels(terinter_data.jac), rownames(sm$sample_info)) #same order of labels in bray distance and samples in metadata
+
+# compute adonis2 on metadata with jaccard distance
+terinter_data.jac.adonis2 <- adonis2(terinter_data.jac ~ Habitat, data = sm$sample_info, by="margin")
+
+# select data for bininter species
+df3 <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/indicSpeciesPredomics/terBeam_bininter/IndicSpeciesPredomics_terBeam_bininter.csv", show_col_types = FALSE))
+bininter_data = filter(df3, IsInFBM == 1)
+bininter_data = sm$X[rownames(sm$X) %in% bininter_data$Species, ]
+
+#compute bray-curtis distance
+bininter_data.bray <- vegdist(x = t(bininter_data), method = "bray")
+
+#identical(labels(bininter_data.bray), rownames(sm$sample_info)) # the labels in bray distance matrix and rows in metadata table in sm object are identical
+
+# compute adonis2 on metadata with bray-curtis distance
+bininter_data.bray.adonis2 <- adonis2(bininter_data.bray ~ Habitat, data = sm$sample_info, perm=999, by="terms")
+
+# compute jaccard distance matrix
+bininter_data.jac <- vegdist(x = t(bininter_data), method = "jaccard", binary = TRUE)
+#identical(labels(bininter_data.jac), rownames(sm$sample_info)) #same order of labels in bray distance and samples in metadata
+
+# compute adonis2 on metadata with jaccard distance
+bininter_data.jac.adonis2 <- adonis2(bininter_data.jac ~ Habitat, data = sm$sample_info, by="margin")
+
+
+permanova.list =list()
+
+permanova.list[["maxN"]][["community"]]= video_data.bray.adonis2
+permanova.list[["presAbs"]][["community"]]= video_data.jac.adonis2
+permanova.list[["maxN"]][["indval"]]= indval_data.bray.adonis2
+permanova.list[["presAbs"]][["indval"]]= indval_data.jac.adonis2
+permanova.list[["maxN"]][["terinter"]]= terinter_data.bray.adonis2
+permanova.list[["presAbs"]][["terinter"]]= terinter_data.jac.adonis2
+permanova.list[["maxN"]][["bininter"]]= bininter_data.bray.adonis2
+permanova.list[["presAbs"]][["bininter"]]= bininter_data.jac.adonis2
+
+permanova.df.list= list()
+## create a data frame for permanova test results
+for (j in names(permanova.list)) {
+  for (k in c("community", "indval", "terinter", "bininter")) {
+    result= permanova.list[[j]][[k]]
+    #permanova.df <- data.frame(result$R2)
+    permanova.df <- data.frame(comparison = "Offshore_Inshore",
+                               r2 = round(result$R2[1], digits = 3),
+                               pvalue = result$`Pr(>F)`[1],
+                               dataset = j,
+                               method = k)
+    #colnames(permanova.df) <- c("r2")
+    #permanova.df$var <- rownames(result)
+    #permanova.df$pvalue = result$`Pr(>F)`[1]
+    
+    ## remove residual and total from the data frame
+    # permanova.df <- permanova.df[!(permanova.df$var) %in% c('Residual','Total'),]
+    # permanova.df$model <- k
+    # permanova.df$distance <- j
+    
+    ## save dataframes in the list
+    
+    permanova.df.list[[j]][[k]] = permanova.df
+  }
+}
+
+#For each element in permanova.df.list, do the rbind of the dataframes of each binary prediction task
+permanova.df.list <- lapply(permanova.df.list, function(x){do.call("rbind", x)})
+
+#merge individual dataframes in single dataframe 
+permanova.df <- do.call("rbind",permanova.df.list)
+
+# permanova.df$colour <- ifelse(permanova.df$p.val<=0.001,"blue","red")
+# 
+# # barplot of pemonova by r2 
+# ggplot(data=permanova.df, aes(x=model, y=r2, color=colour)) +
+#   geom_bar(stat="identity", fill="lightblue")+
+#   geom_text(aes(label=ifelse(p.val <= 0.001, "**" , ifelse(p.val <= 0.05, "*" , " " ))), vjust=-0.3, size=3.5,nudge_y=-0.0003)+ theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+#   scale_color_manual(values = c('blue', 'red'), labels =  c( 'pval <= 0.001', 'pval > 0.001 & pval <=0.05')) +
+#   labs(color = "Significativity") + 
+#   facet_grid(.~distance)
+# 
+# permanova.df$species_type = ifelse(permanova.df$model=='community', 'community_species', 'indicator_species')
+# permanova.df$species_type= factor(permanova.df$species_type)
+# 
+# permanova.df$ratio <- ifelse(permanova.df$distance=='bray', permanova.df$r2/0.1906987, permanova.df$r2/0.2029815)
+# 
+# # barplot of pemonova for r2 of each model under r2 of community
+# permanova_summary <- ggplot(data=permanova.df, aes(x=model, y=ratio,color=distance)) +
+#                         geom_bar(stat="identity", fill="lightblue")+
+#                         geom_text(aes(label=round(ratio,digits = 2)), vjust=-0.7, size=3.5,nudge_y=-0.0003)+ theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+#                         scale_color_manual(values = c('blue', 'red'))+
+#                         #scale_color_manual(values = c('blue', 'red'), labels =  c( 'pval <= 0.001', 'pval > 0.001 & pval <=0.05')) +
+#                         labs(y="r2_model/r2_community") + 
+#                         facet_grid(.~distance)
+# 
+# permanova_summary
+
+# permanova_comp.df = aggregate(r2 ~ species_type + distance + colour + p.val, permanova.df, 'mean')
+# # barplot of pemonova between community and indicator species
+# ggplot(data=permanova_comp.df, aes(x=species_type, y=r2, color=colour)) +
+#   geom_bar(stat="identity", fill="lightblue")+
+#   geom_text(aes(label=ifelse(p.val <= 0.001, "**" , ifelse(p.val <= 0.05, "*" , " " ))), vjust=-0.3, size=3.5,nudge_y=-0.0003)+ theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+#   scale_color_manual(values = c('blue', 'red'), labels =  c( 'pval <= 0.001', 'pval > 0.001 & pval <=0.05')) +
+#   labs(color = "Significativity") + 
+#   facet_grid(.~distance)
+
+## Permutational Multivariate Analysis of Variance (PERMANOVA) with Bray-curtis and Jaccard distance matrix on video data by site
+
+# Load indval analysis results by site
+indval_by_site <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/indicsSpeciesIndval/InValSpecies_video_data_by_Site.csv", show_col_types = FALSE))
+
+# Load bruvs data from Barrier and Bay on indval
+indval_Barrier_Bay = filter(indval_by_site, IsIndSpec == 1 & (Cluster=="Barrier" | Cluster=="Bay"))
+indval_Barrier_Bay = sm$X[rownames(sm$X) %in% indval_Barrier_Bay$Species, ]
+
+# Remove columns with colSums equal to 0
+indval_Barrier_Bay <- indval_Barrier_Bay[, colSums(indval_Barrier_Bay) != 0]
+# get sample info only for sample with ColSums different to 0
+indval_Barrier_Bay.sample_info = sm$sample_info[rownames(sm$sample_info) %in% colnames(indval_Barrier_Bay),]
+indval_Barrier_Bay.bray <- vegdist(x = t(indval_Barrier_Bay), method = "bray")
+
+#identical(labels(indval_Barrier_Bay.bray), rownames(indval_Barrier_Bay.sample_info)) # the labels in bray distance matrix and rows in metadata table in sm object are identical
+
+# compute adonis2 on metadata with bray-curtis distance
+indval_Barrier_Bay.bray.adonis2 <- adonis2(indval_Barrier_Bay.bray ~ Zone, data = indval_Barrier_Bay.sample_info, perm=999, by="terms")
+
+# compute jaccard distance matrix on Barrier_Bay data
+indval_Barrier_Bay.jac <- vegdist(x = t(indval_Barrier_Bay), method = "jaccard", binary = TRUE)
+#identical(labels(indval_Barrier_Bay.jac), rownames(indval_Barrier_Bay.sample_info)) #same order of labels in bray distance and samples in metadata
+
+# compute adonis2 on metadata with jaccard distance
+indval_Barrier_Bay.jac.adonis2 <- adonis2(indval_Barrier_Bay.jac ~ Zone, data = indval_Barrier_Bay.sample_info, by="margin")
+
+# Load bruvs data from Barrier and Bay on terinter
+ter_Barrier_Bay <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/indicSpeciesPredomics/terBeam_terinter/IndicSpecies_predomicsResults_Barrier_Bay.csv", show_col_types = FALSE))
+ter_Barrier_Bay = filter(ter_Barrier_Bay, IsInFBM == 1)
+ter_Barrier_Bay = sm$X[rownames(sm$X) %in% ter_Barrier_Bay$Species, ]
+ter_Barrier_Bay.bray <- vegdist(x = t(ter_Barrier_Bay), method = "bray")
+
+#identical(labels(ter_Barrier_Bay.bray), rownames(sm$sample_info)) # the labels in bray distance matrix and rows in metadata table in sm object are identical
+
+# compute adonis2 on metadata with bray-curtis distance
+ter_Barrier_Bay.bray.adonis2 <- adonis2(ter_Barrier_Bay.bray ~ Zone, data = sm$sample_info, perm=999, by="terms")
+
+# compute jaccard distance matrix on Barrier_Bay data
+ter_Barrier_Bay.jac <- vegdist(x = t(ter_Barrier_Bay), method = "jaccard", binary = TRUE)
+#identical(labels(ter_Barrier_Bay.jac), rownames(sm$sample_info)) #same order of labels in bray distance and samples in metadata
+
+# compute adonis2 on metadata with jaccard distance
+ter_Barrier_Bay.jac.adonis2 <- adonis2(ter_Barrier_Bay.jac ~ Zone, data = sm$sample_info, by="margin")
+
+# Load bruvs data from Barrier and Bay on bininter
+bin_Barrier_Bay <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/indicSpeciesPredomics/terBeam_bininter/IndicSpecies_predomicsResults_Barrier_Bay.csv", show_col_types = FALSE))
+bin_Barrier_Bay = filter(bin_Barrier_Bay, IsInFBM == 1)
+bin_Barrier_Bay = sm$X[rownames(sm$X) %in% bin_Barrier_Bay$Species, ]
+
+# Remove columns with colSums equal to 0
+bin_Barrier_Bay <- bin_Barrier_Bay[, colSums(bin_Barrier_Bay) != 0]
+# get sample info only for sample with ColSums different to 0
+bin_Barrier_Bay.sample_info = sm$sample_info[rownames(sm$sample_info) %in% colnames(bin_Barrier_Bay),]
+bin_Barrier_Bay.bray <- vegdist(x = t(bin_Barrier_Bay), method = "bray")
+
+#identical(labels(bin_Barrier_Bay.bray), rownames(bin_Barrier_Bay.sample_info)) # the labels in bray distance matrix and rows in metadata table in sm object are identical
+
+# compute adonis2 on metadata with bray-curtis distance
+bin_Barrier_Bay.bray.adonis2 <- adonis2(bin_Barrier_Bay.bray ~ Zone, data = bin_Barrier_Bay.sample_info, perm=999, by="terms")
+
+# compute jaccard distance matrix on Barrier_Bay data
+bin_Barrier_Bay.jac <- vegdist(x = t(bin_Barrier_Bay), method = "jaccard", binary = TRUE)
+#identical(labels(bin.BarrierBay.bray.jac), rownames(sm$sample_info)) #same order of labels in bray distance and samples in metadata
+
+# compute adonis2 on metadata with jaccard distance
+bin_Barrier_Bay.jac.adonis2 <- adonis2(bin_Barrier_Bay.jac ~ Zone, data = bin_Barrier_Bay.sample_info, by="margin")
+
+# Load bruvs data from Barrier and Lagoon on indval
+indval_Barrier_Lagoon = filter(indval_by_site, IsIndSpec == 1 & (Cluster=="Barrier" | Cluster=="Lagoon"))
+indval_Barrier_Lagoon = sm$X[rownames(sm$X) %in% indval_Barrier_Lagoon$Species, ]
+indval_Barrier_Lagoon.bray <- vegdist(x = t(indval_Barrier_Lagoon), method = "bray")
+
+#identical(labels(indval_Barrier_Lagoon.bray), rownames(sm$sample_info)) # the labels in bray distance matrix and rows in metadata table in sm object are identical
+
+# compute adonis2 on metadata with bray-curtis distance
+indval_Barrier_Lagoon.bray.adonis2 <- adonis2(indval_Barrier_Lagoon.bray ~ Zone, data = sm$sample_info, perm=999, by="terms")
+
+# compute jaccard distance matrix on Barrier_Bay data
+indval_Barrier_Lagoon.jac <- vegdist(x = t(indval_Barrier_Lagoon), method = "jaccard", binary = TRUE)
+#identical(labels(indval_Barrier_Lagoon.jac), rownames(smsample_info)) #same order of labels in bray distance and samples in metadata
+
+# compute adonis2 on metadata with jaccard distance
+indval_Barrier_Lagoon.jac.adonis2 <- adonis2(indval_Barrier_Lagoon.jac ~ Zone, data = sm$sample_info, by="margin")
+
+#compute bray-curtis distance on Barrier_Lagoon
+ter_Barrier_Lagoon <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/indicSpeciesPredomics/terBeam_terinter/IndicSpecies_predomicsResults_Barrier_Lagoon.csv", show_col_types = FALSE))
+ter_Barrier_Lagoon = filter(ter_Barrier_Lagoon, IsInFBM == 1)
+ter_Barrier_Lagoon= sm$X[rownames(sm$X) %in% ter_Barrier_Lagoon$Species, ]
+ter_Barrier_Lagoon.bray <- vegdist(x = t(ter_Barrier_Lagoon), method = "bray")
+
+#identical(labels(ter_Barrier_Lagoon.bray), rownames(sm$sample_info)) # the labels in bray distance matrix and rows in metadata table in sm object are identical
+
+# compute adonis2 on metadata with bray-curtis distance
+ter_Barrier_Lagoon.bray.adonis2 <- adonis2(ter_Barrier_Lagoon.bray ~ Zone, data = sm$sample_info, perm=999, by="terms")
+
+# compute jaccard distance matrix on Barrier_Lagoon
+ter_Barrier_Lagoon.jac <- vegdist(x = t(ter_Barrier_Lagoon), method = "jaccard", binary = TRUE)
+#identical(labels(indval_data.jac), rownames(sm$sample_info)) #same order of labels in bray distance and samples in metadata
+
+# compute adonis2 on metadata with jaccard distance
+ter_Barrier_Lagoon.jac.adonis2 <- adonis2(ter_Barrier_Lagoon.jac ~ Zone, data = sm$sample_info, by="margin")
+
+# Load bruvs data from Barrier and Lagoon on bininter
+bin_Barrier_Lagoon <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/indicSpeciesPredomics/terBeam_bininter/IndicSpecies_predomicsResults_Barrier_Lagoon.csv", show_col_types = FALSE))
+bin_Barrier_Lagoon = filter(bin_Barrier_Lagoon, IsInFBM == 1)
+bin_Barrier_Lagoon = sm$X[rownames(sm$X) %in% bin_Barrier_Lagoon$Species, ]
+
+# Remove columns with colSums equal to 0
+bin_Barrier_Lagoon <- bin_Barrier_Lagoon[, colSums(bin_Barrier_Lagoon) != 0]
+# get sample info only for sample with ColSums different to 0
+bin_Barrier_Lagoon.sample_info = sm$sample_info[rownames(sm$sample_info) %in% colnames(bin_Barrier_Lagoon),]
+bin_Barrier_Lagoon.bray <- vegdist(x = t(bin_Barrier_Lagoon), method = "bray")
+
+#identical(labels(bin_Barrier_Lagoon.bray), rownames(bin_Barrier_Lagoon.sample_info)) # the labels in bray distance matrix and rows in metadata table in sm object are identical
+
+# compute adonis2 on metadata with bray-curtis distance
+bin_Barrier_Lagoon.bray.adonis2 <- adonis2(bin_Barrier_Lagoon.bray ~ Zone, data = bin_Barrier_Lagoon.sample_info, perm=999, by="terms")
+
+# compute jaccard distance matrix on Barrier_Lagoon data
+bin_Barrier_Lagoon.jac <- vegdist(x = t(bin_Barrier_Lagoon), method = "jaccard", binary = TRUE)
+#identical(labels(bin.BarrierBay.bray.jac), rownames(sm$sample_info)) #same order of labels in bray distance and samples in metadata
+
+# compute adonis2 on metadata with jaccard distance
+bin_Barrier_Lagoon.jac.adonis2 <- adonis2(bin_Barrier_Lagoon.jac ~ Zone, data = bin_Barrier_Lagoon.sample_info, by="margin")
+
+# Load bruvs data from Bay and Lagoon on indval
+indval_Bay_Lagoon = filter(indval_by_site, IsIndSpec == 1 & (Cluster=="Bay" | Cluster=="Lagoon"))
+indval_Bay_Lagoon = sm$X[rownames(sm$X) %in% indval_Bay_Lagoon$Species, ]
+
+# Remove columns with colSums equal to 0
+indval_Bay_Lagoon <- indval_Bay_Lagoon[, colSums(indval_Bay_Lagoon) != 0]
+# get sample info only for sample with ColSums different to 0
+indval_Bay_Lagoon.sample_info = sm$sample_info[rownames(sm$sample_info) %in% colnames(indval_Bay_Lagoon),]
+indval_Bay_Lagoon.bray <- vegdist(x = t(indval_Bay_Lagoon), method = "bray")
+
+#identical(labels(indval_Bay_Lagoon.bray), rownames(indval_Bay_Lagoon.sample_info)) # the labels in bray distance matrix and rows in metadata table in sm object are identical
+
+# compute adonis2 on metadata with bray-curtis distance
+indval_Bay_Lagoon.bray.adonis2 <- adonis2(indval_Bay_Lagoon.bray ~ Zone, data = indval_Bay_Lagoon.sample_info, perm=999, by="terms")
+
+# compute jaccard distance matrix on Barrier_Bay data
+indval_Bay_Lagoon.jac <- vegdist(x = t(indval_Bay_Lagoon), method = "jaccard", binary = TRUE)
+#identical(labels(indval_Bay_Lagoon.jac), rownames(indval_Bay_Lagoon.sample_info)) #same order of labels in bray distance and samples in metadata
+
+# compute adonis2 on metadata with jaccard distance
+indval_Bay_Lagoon.jac.adonis2 <- adonis2(indval_Bay_Lagoon.jac ~ Zone, data = indval_Bay_Lagoon.sample_info, by="margin")
+
+#compute bray-curtis distance on Bay_Lagoon
+ter_Bay_Lagoon <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/indicSpeciesPredomics/terBeam_terinter/IndicSpecies_predomicsResults_Bay_Lagoon.csv", show_col_types = FALSE))
+ter_Bay_Lagoon = filter(ter_Bay_Lagoon, IsInFBM == 1)
+ter_Bay_Lagoon = sm$X[rownames(sm$X) %in% ter_Bay_Lagoon$Species, ]
+# Remove columns with colSums equal to 0
+ter_Bay_Lagoon <- ter_Bay_Lagoon[, colSums(ter_Bay_Lagoon) != 0]
+# get sample info only for sample with ColSums different to 0
+ter_Bay_Lagoon.sample_info = sm$sample_info[rownames(sm$sample_info) %in% colnames(ter_Bay_Lagoon),]
+ter_Bay_Lagoon.bray <- vegdist(x = t(ter_Bay_Lagoon), method = "bray")
+
+#identical(labels(ter_Bay_Lagoon.bray), rownames(ter_Bay_Lagoon.sample_info)) # the labels in bray distance matrix and rows in metadata table in sm object are identical
+
+# compute adonis2 on metadata with bray-curtis distance
+ter_Bay_Lagoon.bray.adonis2 <- adonis2(ter_Bay_Lagoon.bray ~ Zone, data = ter_Bay_Lagoon.sample_info, perm=999, by="terms")
+
+# compute jaccard distance matrix on Bay_Lagoon
+ter_Bay_Lagoon.jac <- vegdist(x = t(ter_Bay_Lagoon), method = "jaccard", binary = TRUE)
+#identical(labels(ter_Bay_Lagoon.jac), rownames(ter_Bay_Lagoon.sample_info)) #same order of labels in bray distance and samples in metadata
+
+# compute adonis2 on metadata with jaccard distance
+ter_Bay_Lagoon.jac.adonis2 <- adonis2(ter_Bay_Lagoon.jac ~ Zone, data = ter_Bay_Lagoon.sample_info, by="margin")
+
+# Load bruvs data from Barrier and Lagoon on bininter
+bin_Bay_Lagoon <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/indicSpeciesPredomics/terBeam_bininter/IndicSpecies_predomicsResults_Bay_Lagoon.csv", show_col_types = FALSE))
+bin_Bay_Lagoon = filter(bin_Bay_Lagoon, IsInFBM == 1)
+bin_Bay_Lagoon = sm$X[rownames(sm$X) %in% bin_Bay_Lagoon$Species, ]
+
+# Remove columns with colSums equal to 0
+bin_Bay_Lagoon <- bin_Bay_Lagoon[, colSums(bin_Bay_Lagoon) != 0]
+# get sample info only for sample with ColSums different to 0
+bin_Bay_Lagoon.sample_info = sm$sample_info[rownames(sm$sample_info) %in% colnames(bin_Bay_Lagoon),]
+bin_Bay_Lagoon.bray <- vegdist(x = t(bin_Bay_Lagoon), method = "bray")
+
+#identical(labels(bin_Bay_Lagoon.bray), rownames(bin_Bay_Lagoon.sample_info)) # the labels in bray distance matrix and rows in metadata table in sm object are identical
+
+# compute adonis2 on metadata with bray-curtis distance
+bin_Bay_Lagoon.bray.adonis2 <- adonis2(bin_Bay_Lagoon.bray ~ Zone, data = bin_Bay_Lagoon.sample_info, perm=999, by="terms")
+
+# compute jaccard distance matrix on Bay_Lagoon data
+bin_Bay_Lagoon.jac <- vegdist(x = t(bin_Bay_Lagoon), method = "jaccard", binary = TRUE)
+#identical(labels(bin_Bay_Lagoon.jac), rownames(bin_Bay_Lagoon.sample_info)) #same order of labels in bray distance and samples in metadata
+
+# compute adonis2 on metadata with jaccard distance
+bin_Bay_Lagoon.jac.adonis2 <- adonis2(bin_Bay_Lagoon.jac ~ Zone, data = bin_Bay_Lagoon.sample_info, by="margin")
+
+# #compute bray-curtis distance
+# ter_Offshore_Inshore <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/indicSpeciesPredomics/terBeam_terinter/IndicSpecies_predomicsResults_Offshore_Inshore.csv", show_col_types = FALSE))
+# ter_Offshore_Inshore = filter(ter_Offshore_Inshore, IsInFBM == 1) 
+# ter_Offshore_Inshore = sm$X[rownames(sm$X) %in% ter_Offshore_Inshore$Species, ]
+# video_data.OffshoreInshore.bray <- vegdist(x = t(ter_Offshore_Inshore), method = "bray")
+# 
+# #identical(labels(video_data.OffshoreInshore.bray), rownames(sm$sample_info)) # the labels in bray distance matrix and rows in metadata table in sm object are identical
+# 
+# # compute adonis2 on metadata with bray-curtis distance
+# video_data.OffshoreInshore.bray.adonis2 <- adonis2(video_data.OffshoreInshore.bray ~ Habitat, data = sm$sample_info, perm=999, by="terms")
+# 
+# # compute jaccard distance matrix on Offshore_Inshore
+# 
+# video_data.OffshoreInshore.jac <- vegdist(x = t(ter_Offshore_Inshore), method = "jaccard", binary = TRUE)
+# #identical(labels(video_data.OffshoreInshore.jac), rownames(sm$sample_info)) #same order of labels in bray distance and samples in metadata
+# 
+# # compute adonis2 on metadata with jaccard distance
+# video_data.OffshoreInshore.jac.adonis2 <- adonis2(video_data.OffshoreInshore.jac ~ Habitat, data = sm$sample_info, by="margin")
+
+
+# permanova.list =list()
+# 
+# permanova.list[["bray"]][["Barrier_Bay"]]= video_data.BarrierBay.bray.adonis2
+# permanova.list[["jaccard"]][["Barrier_Bay"]]= video_data.BarrierBay.jac.adonis2
+# permanova.list[["bray"]][["Barrier_Lagoon"]]= video_data.BarrierLagoon.bray.adonis2
+# permanova.list[["jaccard"]][["Barrier_Lagoon"]]= video_data.BarrierLagoon.jac.adonis2
+# permanova.list[["bray"]][["Bay_Lagoon"]]= video_data.BayLagoon.bray.adonis2
+# permanova.list[["jaccard"]][["Bay_Lagoon"]]= video_data.BayLagoon.jac.adonis2
+# permanova.list[["bray"]][["Offshore_Inshore"]]= video_data.OffshoreInshore.bray.adonis2
+# permanova.list[["jaccard"]][["Offshore_Inshore"]]= video_data.OffshoreInshore.jac.adonis2
+
+
+# permanova.df.list= list()
+# ## create a data frame for permanova test results
+# for (j in names(permanova.list)) {
+#   for (k in c("Barrier_Bay", "Barrier_Lagoon", "Bay_Lagoon", "Offshore_Inshore")) {
+#     result= permanova.list[[j]][[k]]
+#     permanova.df <- data.frame(result$R2)
+#     colnames(permanova.df) <- c("r2")
+#     permanova.df$var <- rownames(result)
+#     permanova.df$p.val <- result$`Pr(>F)`
+#     
+#     ## remove residual and total from the data frame
+#     permanova.df <- permanova.df[!(permanova.df$var) %in% c('Residual','Total'),]
+#     permanova.df$comparison <- k
+#     permanova.df$distance <- j
+#     
+#     ## save dataframes in the list
+#     
+#   permanova.df.list[[j]][[k]] = permanova.df
+#   }
+# }
+# 
+# #For each element in permanova.df.list, do the rbind of the dataframes of each binary prediction task
+# permanova.df.list <- lapply(permanova.df.list, function(x){do.call("rbind", x)})
+# 
+# #merge individual dataframes in single dataframe 
+# permanova.df <- do.call("rbind",permanova.df.list)
+# 
+# permanova.df$colour <- ifelse(permanova.df$p.val<=0.001,"blue","red")
+# 
+# # barplot of pemonova by r2 
+# pdf(file="/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/plots/permanova_analysis_by_site.pdf", h=5, w=6)
+# ggplot(data=permanova.df, aes(x=comparison, y=r2, color=colour)) +
+#   geom_bar(stat="identity", fill="lightblue")+
+#   geom_text(aes(label=ifelse(p.val <= 0.001, "**" , ifelse(p.val <= 0.05, "*" , " " ))), vjust=-0.3, size=3.5,nudge_y=-0.0003)+ theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+#   scale_color_manual(values = c('blue', 'red'), labels =  c( 'pval <= 0.001', 'pval > 0.001 & pval <=0.05')) +
+#   labs(color = "Significativity") + scale_y_continuous(name="r2", limits=c(0, 0.4)) +
+#   facet_grid(.~distance)
+# dev.off()
+
+permanova_by_site.list= list()
+
+permanova_by_site.list[["maxN"]][["indval"]][["Barrier_Bay"]]= indval_Barrier_Bay.bray.adonis2
+permanova_by_site.list[["maxN"]][["terinter"]][["Barrier_Bay"]]= ter_Barrier_Bay.bray.adonis2
+permanova_by_site.list[["maxN"]][["bininter"]][["Barrier_Bay"]]= bin_Barrier_Bay.bray.adonis2
+permanova_by_site.list[["presAbs"]][["indval"]][["Barrier_Bay"]]= indval_Barrier_Bay.jac.adonis2
+permanova_by_site.list[["presAbs"]][["terinter"]][["Barrier_Bay"]]= ter_Barrier_Bay.jac.adonis2
+permanova_by_site.list[["presAbs"]][["bininter"]][["Barrier_Bay"]]= bin_Barrier_Bay.jac.adonis2
+permanova_by_site.list[["maxN"]][["indval"]][["Barrier_Lagoon"]]= indval_Barrier_Lagoon.bray.adonis2
+permanova_by_site.list[["maxN"]][["terinter"]][["Barrier_Lagoon"]]= ter_Barrier_Lagoon.bray.adonis2
+permanova_by_site.list[["maxN"]][["bininter"]][["Barrier_Lagoon"]]= bin_Barrier_Lagoon.bray.adonis2
+permanova_by_site.list[["presAbs"]][["indval"]][["Barrier_Lagoon"]]= indval_Barrier_Lagoon.jac.adonis2
+permanova_by_site.list[["presAbs"]][["terinter"]][["Barrier_Lagoon"]]= ter_Barrier_Lagoon.jac.adonis2
+permanova_by_site.list[["presAbs"]][["bininter"]][["Barrier_Lagoon"]]= bin_Barrier_Lagoon.jac.adonis2
+permanova_by_site.list[["maxN"]][["indval"]][["Bay_Lagoon"]]= indval_Bay_Lagoon.bray.adonis2
+permanova_by_site.list[["maxN"]][["terinter"]][["Bay_Lagoon"]]= ter_Bay_Lagoon.bray.adonis2
+permanova_by_site.list[["maxN"]][["bininter"]][["Bay_Lagoon"]]= bin_Bay_Lagoon.bray.adonis2
+permanova_by_site.list[["presAbs"]][["indval"]][["Bay_Lagoon"]]= indval_Bay_Lagoon.jac.adonis2
+permanova_by_site.list[["presAbs"]][["terinter"]][["Bay_Lagoon"]]= ter_Bay_Lagoon.jac.adonis2
+permanova_by_site.list[["presAbs"]][["bininter"]][["Bay_Lagoon"]]= bin_Bay_Lagoon.jac.adonis2
+
+permanova_by_site.df.list= list()
+## create a data frame for permanova test results
+for (j in names(permanova_by_site.list)) {
+  for (k in c("indval", "terinter", "bininter")) {
+    for (m in c("Barrier_Bay", "Barrier_Lagoon", "Bay_Lagoon")) {
+      result_by_site= permanova_by_site.list[[j]][[k]][[m]]
+      #permanova.df <- data.frame(result$R2)
+      permanova_by_site.df <- data.frame(comparison = m,
+                                 r2 = round(result_by_site$R2[1], digits = 3),
+                                 pvalue = result_by_site$`Pr(>F)`[1],
+                                 dataset = j,
+                                 method = k)
+      #colnames(permanova.df) <- c("r2")
+      #permanova.df$var <- rownames(result)
+      #permanova.df$pvalue = result$`Pr(>F)`[1]
+      
+      ## remove residual and total from the data frame
+      # permanova.df <- permanova.df[!(permanova.df$var) %in% c('Residual','Total'),]
+      # permanova.df$model <- k
+      # permanova.df$distance <- j
+      
+      ## save dataframes in the list
+      
+      permanova_by_site.df.list[[j]][[k]][[m]] = permanova_by_site.df
+    }
+  }
+}
+
+#For each element in permanova.df.list, do the rbind of the dataframes of each binary prediction task
+for (j in names(permanova_by_site.df.list)) {
+  permanova_by_site.df.list[[j]] <- lapply(permanova_by_site.df.list[[j]], function(x){do.call("rbind", x)})
+}
+
+permanova_by_site.df.list <- lapply(permanova_by_site.df.list, function(x){do.call("rbind", x)})
+#merge individual dataframes in single dataframe 
+permanova_by_site.df <- do.call("rbind",permanova_by_site.df.list)
+
+# merge permanova dataframes from Inshore/Offshore and by site 
+permanova_all.df <- rbind(permanova.df, permanova_by_site.df)
+
+# save the dataframe
+write.csv(permanova_all.df, paste0("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/1.Article_figures/fig2/fig2-D/permanova_all_results", ".csv"), row.names=FALSE)
+
+# barplot of pemonova by r2
+pdf(file="/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/1.Article_figures/fig2/fig2-D/permanova_all_results.pdf", h=6, w=7)
+ggplot(data=permanova_all.df, aes(x=comparison, y=r2)) +
+  geom_bar(stat="identity", fill="lightblue")+
+  geom_text(aes(label=ifelse(pvalue <= 0.001, "**" , ifelse(pvalue <= 0.05, "*" , " " ))), vjust=-0.3, size=3.5,nudge_y=-0.0003)+ theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  scale_color_manual(values = c('blue', 'red'), labels =  c( 'pval <= 0.001', 'pval > 0.001 & pval <=0.05')) +
+  labs(color = "Significativity") + scale_y_continuous(name="r2", limits=c(0, 0.6)) +
+  facet_grid(dataset~method)
+dev.off()
+
+```
+

@@ -1,0 +1,396 @@
+---
+title: "generate figures for article"
+author: "Estephe Kana, Eugeni Belda & Edi Prifti"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# create object's data for all analyses
+
+```{r load data, message=FALSE, warning=FALSE}
+library(ggplot2) # for plots
+library(gridExtra) # for multiple plots
+library(patchwork) # to display multiples graphs in the same figure
+
+# load indval results
+load(file="~/Downloads/aime_07_10_2024_update_23_10_2024/aime/analyses/metabarcoding/4.data_video_analysis/1.Article_figures/fig2/fig2-B-C-E-F/indval_output_data/Indval_all_analyses_overall_data_prev_10.Rda")
+
+# load bininter results
+load(file="~/Downloads/aime_07_10_2024_update_23_10_2024/aime/analyses/metabarcoding/4.data_video_analysis/1.Article_figures/fig2/fig2-B-C-E-F/bininter_output_data/bininter_Predomics_all_analyses_overall_data_prev_10.Rda")
+
+### get object for adonis results in all comarison from each algorithm
+# Rename variables loaded to diffenriate it with terinter vars
+adonis_pred_bininter.bin <- adonis_pred.bin; adonis_pred_bininter.maxn <- adonis_pred.maxn
+predout_bininter.bin <- predout.bin; predout_bininter.bin.sub <- predout.bin.sub 
+predout_bininter.maxn <- predout.maxn; predout_bininter.maxn.sub <- predout.maxn.sub
+# remove loaded variables to avoid override
+rm(adonis_pred.bin, adonis_pred.maxn, predout.bin, predout.bin.sub, predout.maxn, predout.maxn.sub)
+
+# load terinter results
+load(file="~/Downloads/aime_07_10_2024_update_23_10_2024/aime/analyses/metabarcoding/4.data_video_analysis/1.Article_figures/fig2/fig2-B-C-E-F/terinter_output_data/terinter_Predomics_all_analyses_overall_data_prev_10.Rda")
+# Rename variables loaded to diffenriate it with terinter vars
+adonis_pred_terinter.bin <- adonis_pred.bin; adonis_pred_terinter.maxn <- adonis_pred.maxn
+predout_terinter.bin <- predout.bin; predout_terinter.bin.sub <- predout.bin.sub
+predout_terinter.maxn <- predout.maxn; predout_terinter.maxn.sub <- predout.maxn.sub
+# remove loaded variables to avoid override
+rm(adonis_pred.bin, adonis_pred.maxn, predout.bin, predout.bin.sub, predout.maxn, predout.maxn.sub)
+
+# initialize a list of adonis objects  
+adonis.list <- list(ind.bin= adonis.bin, ind.maxn= adonis.maxn, pred_bin.bin= adonis_pred_bininter.bin, pred_bin.maxn= adonis_pred_bininter.maxn, pred_ter.bin= adonis_pred_terinter.bin, pred_ter.maxn= adonis_pred_terinter.maxn)
+
+# Initialize an empty list to store the results
+combined_adonis.list <- list()
+
+# Loop through each element of the adonis.list
+for (i in names(adonis.list)) {
+  # Append each sub-list to the combined_adonis.list
+  combined_adonis.list[[i]] <- do.call(rbind, adonis.list[[i]])
+}
+
+# Combine all the sub-lists into one dataframe by row
+adonis.df <- do.call(rbind, combined_adonis.list)
+
+# # Remove specified columns: "Df", "SumOfSqs", "F"
+# adonis.df <- adonis.df[, !colnames(adonis.df) %in% c("Df", "SumOfSqs", "F")]
+# # Rename the "Pr..F." column of adonis.df
+colnames(adonis.df)[colnames(adonis.df) == "Pr..F."] <- "pvalue"
+# Replace all occurrences of the value 'pres/abs' with 'bin' in adonis.df
+# adonis.df[adonis.df == 'pres/abs'] <- 'bin'
+# Replace all occurrences of the value 'allSpecies_terinter' or 'allSpecies_bininter' with 'allSpecies' in adonis.df
+adonis.df$source[adonis.df$source %in% c('allSpecies_terinter', 'allSpecies_bininter')] <- 'allSpecies'
+# # Remove rows where "source" is equal to any value in the list c("allSpecies_terinter", "allSpecies_bininter")
+# adonis.df <- adonis.df[!adonis.df$source %in% c("allSpecies_terinter", "allSpecies_bininter"), ]
+
+# # remove duplicated rows of adonis.df
+# adonis.df <- adonis.df %>%
+#   distinct(comparison, data, source, .keep_all = TRUE)
+
+# computer the ratio between r2 of individual sites comparison and r2 of the community
+library(dplyr)
+adonis.df <- adonis.df %>%
+    group_by(comparison, data) %>%
+    mutate(
+        ratio = round(R2 / R2[source == "allSpecies"], digits = 3)
+    ) %>%
+    ungroup()
+
+
+## get object for feature importance comparison of indics species from Indval/Predomics
+# remove pval column from indvalout.bin.sub and indvalout.maxn.sub
+indvalout.bin.sub <- indvalout.bin.sub[ , !(names(indvalout.bin.sub) %in% "pval")]
+indvalout.maxn.sub <- indvalout.maxn.sub[ , !(names(indvalout.maxn.sub) %in% "pval")]
+
+# Reorder columns of indvalout.bin.sub and indvalout.maxn.sub
+# indvalout.bin.sub <- indvalout.bin.sub[, c("feature","featureImportance","class","IsIndSp","prevalence","comparison","source","data")]
+# indvalout.maxn.sub <- indvalout.maxn.sub[, c("feature","featureImportance","class","IsIndSp","prevalence","comparison","source","data")]
+
+
+# Replace all occurrences of the value 'presAbs' with 'pres/abs' in indvalout.bin.sub
+#indvalout.bin.sub[indvalout.bin.sub == 'presAbs'] <- 'pres/abs'
+
+# initialize a list for all indicator species 
+indics_species.list <- list(indval.bin =indvalout.bin.sub, indval.maxn= indvalout.maxn.sub,
+                            bininter.bin= predout_bininter.bin.sub, bininter.maxn= predout_bininter.maxn.sub,
+                            terinter.bin= predout_terinter.bin.sub, terinter.maxn= predout_terinter.maxn.sub)
+
+# Combine all the sub-lists into one dataframe by row
+indics_species.list <- do.call(rbind, indics_species.list)
+# Remove row names of indics_species.list
+rownames(indics_species.list) <- NULL
+
+
+##### Save objects
+save_path='~/Downloads/aime_07_10_2024_update_23_10_2024/aime/analyses/metabarcoding/4.data_video_analysis/1.Article_figures/fig2/fig2-B-C-E-F/'
+# adonis results all comparisons; all algorithms
+write.csv(adonis.df, file = paste0(save_path, "adonis_all_analyses_overall_data_prev_1O.csv"), row.names = FALSE)
+# save(adonis.df,
+#      file = paste0(save_path, "adonis_all_analyses.csv"))
+
+# feature importance of indics species from all algorithms and all comparison
+write.csv(indics_species.list, file = paste0(save_path, "feat_import_all_analyses__overall_data_prev_1O.csv"), row.names = FALSE)
+
+```
+
+# generate plot for permanova analyses
+
+```{r Permanova analysis, fig.height=6, fig.width=10, message=FALSE, warning=FALSE, results='hide'}
+
+# remove row of allspecies community before plotting
+adonis.df_filt <- adonis.df[adonis.df$source != "allSpecies", ]
+
+adonis.df_filt$colour <- ifelse(adonis.df_filt$pvalue<=0.001,"blue","red")
+
+# barplot of pemonova by r2
+pdf(file="~/Downloads/aime_07_10_2024_update_23_10_2024/aime/analyses/metabarcoding/4.data_video_analysis/1.Article_figures/fig2/fig2-D/permanova_all_results_updated_final.pdf", h=6, w=7)
+ggplot(data=adonis.df_filt, aes(x=comparison, y=R2, color=colour)) +
+  geom_bar(stat="identity", fill="lightblue")+
+  geom_text(aes(label=ifelse(pvalue <= 0.001, "**" , ifelse(pvalue <= 0.05, "*" , " " ))), vjust=-0.3, size=3.5,nudge_y=-0.0003)+ theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  scale_color_manual(values = c('blue', 'red'), labels =  c( 'pval <= 0.001', 'pval > 0.001 & pval <=0.05')) +
+  labs(color = "Significativity") +
+  facet_grid(data~source)
+dev.off()
+
+# barplot of pemonova for r2 of each comparison under r2 of INSHORE_OFFSHORE
+pdf(file="~/Downloads/aime_07_10_2024_update_23_10_2024/aime/analyses/metabarcoding/4.data_video_analysis/1.Article_figures/fig2/fig2-D/permanova_ratio_all_results_final.pdf", h=6, w=7)
+ggplot(data=adonis.df_filt, aes(x=comparison, y=ratio, color=colour)) +
+        geom_bar(stat="identity", fill="lightblue")+
+        geom_text(aes(label=ratio), vjust=-0.7, size=3.5,nudge_y=-0.0003)+ 
+        theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+        labs(color = "Significativity") +
+        scale_color_manual(values = c('blue', 'red'), labels =  c( 'pval <= 0.001', 'pval > 0.001 & pval <=0.05')) +
+        scale_y_continuous(name="r2_comp/r2_community", limits=c(0, 6)) +
+        facet_grid(data~source)
+dev.off()
+
+
+# ## VEnn diagram
+# 
+# indics_species.df <- indics_species.list %>%
+#     group_by(comparison, data) %>%
+#     group_split()
+```
+
+# generate plots
+
+```{r Correlation indicator value and Feat importance, fig.height=6, fig.width=10, message=FALSE, warning=FALSE, results='hide'}
+
+# get all indics species data
+
+all_species.df <- as.data.frame(read.csv("~/Downloads/aime_07_10_2024_update_23_10_2024/aime/analyses/metabarcoding/4.data_video_analysis/1.Article_figures/fig2/fig2-B-C-E-F/feat_import_all_analyses__overall_data_prev_1O.csv"))
+
+# load video data
+# load(file='~/Downloads/aime_07_10_2024_update_23_10_2024/aime/analyses/metabarcoding/4.data_video_analysis/video_data_object.rda')
+
+# filter only indicator species
+all_indics_species.df <- all_species.df[all_species.df$IsIndSp==1,]
+
+# rename bin and ter with predomics_ter and predomics_bin
+all_species.df[all_species.df == 'terinter'] <- 'predomics_ter'
+all_species.df[all_species.df == 'bininter'] <- 'predomics_bin'
+all_indics_species.df[all_indics_species.df == 'terinter'] <- 'predomics_ter'
+all_indics_species.df[all_indics_species.df == 'bininter'] <- 'predomics_bin'
+
+# Required library
+library(ggVennDiagram)
+library(patchwork)
+# Initialize lists
+venn_list_by_comparison <- list()
+venn_list_by_method <- list()
+venn_by_comparison <- list()
+venn_by_method <- list()
+
+# Helper function for generating Venn diagrams
+generate_venn_plot <- function(venn_data, title_text, set_size = 3) {
+  ggVennDiagram(venn_data, set_size = set_size, label_size = 5) +
+    ggtitle(title_text) +
+    theme(
+      plot.title = element_text(face = "bold", margin = margin(10, 0, 10, 0)),
+      legend.title = element_text(color = "black", size = 9),
+      legend.position = "right"
+    ) +
+    scale_fill_distiller(palette = "RdBu", limits=c(0,50))
+}
+
+# Main loops to generate the Venn diagrams
+for (i in unique(all_indics_species.df$data)) {
+    for (j in unique(all_indics_species.df$comparison)) {
+       for (k in unique(all_indics_species.df$source)) {
+      # Create Venn list for comparison
+        venn_list_by_comparison[[i]][[j]][[k]] <- unique(all_indics_species.df$feature[
+          (all_indics_species.df$data == i) & 
+          (all_indics_species.df$source == k) & 
+          (all_indics_species.df$comparison == j)
+        ])
+        
+        # Create Venn list for method
+        venn_list_by_method[[i]][[k]][[j]] <- venn_list_by_comparison[[i]][[j]][[k]]
+      }
+    
+    # Generate Venn diagram by comparison
+    venn_by_comparison[[i]][[j]] <- generate_venn_plot(venn_list_by_comparison[[i]][[j]], title_text = j)
+  }
+  
+  for (k in unique(all_indics_species.df$source)) {
+    # Generate Venn diagram by method
+    venn_by_method[[i]][[k]] <- generate_venn_plot(venn_list_by_method[[i]][[k]], title_text = k, set_size = 2.5)
+  }
+}
+
+# Combine all venn_by_comparison plots using patchwork
+combined_plot_by_comparison <- list()
+
+for (i in unique(all_indics_species.df$data)) {
+  combined_plot_by_comparison[[i]] <- wrap_plots(venn_by_comparison[[i]], ncol = 4)  # Adjust the number of columns if needed
+}
+
+# Combine all datasets into one plot (if you want to see all plots from all data)
+all_combined_plot_by_comparison <- wrap_plots(combined_plot_by_comparison, nrow = 2)
+
+# Display the final combined plot
+all_combined_plot_by_comparison
+
+# Combine all venn_by_comparison plots using patchwork
+combined_plot_by_method <- list()
+
+for (i in unique(all_indics_species.df$data)) {
+  combined_plot_by_method[[i]] <- wrap_plots(venn_by_method[[i]], ncol = 3) + 
+    plot_annotation(title = paste("Dataset:", i))
+}
+
+# Combine all datasets into one plot (if you want to see all plots from all data)
+all_combined_plot_by_method <- wrap_plots(combined_plot_by_method, nrow = 2)
+
+# Display the final combined plot
+all_combined_plot_by_method
+
+# plot prevalence distribution
+
+all_indics_species.df$source <- as.factor(all_indics_species.df$source)
+# distribution of density indics species vs others
+ggplot(all_indics_species.df, aes(x = prevalence, color=source, group=source)) +
+  geom_density(alpha = 0.6) +
+  labs(x = "Prevalence", y = "Density") +
+  scale_x_continuous(limits=c(0, 100))+
+  facet_grid(data~comparison)+
+  theme_bw() 
+
+
+# plot comparison between Indval/terinter/bininter by prevalence
+comparison= combn(x = as.character(unique(all_species.df$IsIndSp)), m = 2, simplify = FALSE)
+library(ggpubr)
+# factorize IsIndSp
+all_species.df$IsIndSp= as.factor(all_species.df$IsIndSp)
+
+ggplot(all_species.df, aes(x=source, y=prevalence, color=IsIndSp))+
+  geom_boxplot(alpha=0.6)+
+  labs(x = "Source", y = "Prevalence") +
+  facet_grid(data ~ comparison) +
+  theme_bw()+
+  stat_compare_means(method = "wilcox.test",
+                     label.y = c(85, 80, 75))
+
+# scatter plot prevalence vs feature importance
+# factorize IsIndSp
+all_indics_species.df$IsIndSp= as.factor(all_indics_species.df$IsIndSp)
+all_indics_species_indval.df= all_indics_species.df[all_indics_species.df$source=="indval",]
+# Rename the feat import in all_species_indval.df to indicator value column of adonis.df
+colnames(all_indics_species_indval.df)[colnames(all_indics_species_indval.df) == "featureImportance"] <- "indicator_value"
+
+all_indics_species_bininter.df= all_indics_species.df[all_indics_species.df$source=="predomics_bin",]
+
+all_indics_species_terinter.df= all_indics_species.df[all_indics_species.df$source=="predomics_ter",]
+
+## scatter plot feat import vs prevalence
+library(ggpubr)
+
+ggplot(all_indics_species_indval.df, aes(x=indicator_value, y=prevalence))+
+  geom_point()+
+  stat_cor(method = "spearman")+
+  labs(x = "indicator_value", y = "Prevalence") +
+  facet_grid(data ~ comparison) + ggtitle("Indval")+
+  theme_bw()
+
+ggplot(all_indics_species_bininter.df, aes(x=featureImportance, y=prevalence))+
+  geom_point()+
+  stat_cor(method = "spearman")+
+  labs(x = "featureImportance", y = "Prevalence") +
+  facet_grid(data ~ comparison) + ggtitle("Bininter")+
+  theme_bw()
+
+ggplot(all_indics_species_terinter.df, aes(x=featureImportance, y=prevalence))+
+  geom_point()+
+  stat_cor(method = "spearman")+
+  labs(x = "featureImportance", y = "Prevalence") +
+  facet_grid(data ~ comparison) + ggtitle("Terinter")+
+  theme_bw()
+
+# indval_sp = all_indics_species_prev[all_indics_species_prev$source=="indval",]
+# # Rename the feat import in indval_sp to indicator value column of adonis.df
+# colnames(indval_sp)[colnames(indval_sp) == "featureImportance"] <- "indicator_value"
+# 
+# bininter_sp= all_indics_species_prev[all_indics_species_prev$source=="predomics_bin",]
+# 
+# terinter_sp= all_indics_species_prev[all_indics_species_prev$source=="predomics_ter",]
+
+all_species.df$IsIndSp= as.factor(all_species.df$IsIndSp)
+all_species_indval.df= all_species.df[all_species.df$source=="indval",]
+# Rename the feat import in all_species_indval.df to indicator value column of adonis.df
+colnames(all_species_indval.df)[colnames(all_species_indval.df) == "featureImportance"] <- "indicator_value"
+
+all_species_bininter.df= all_species.df[all_species.df$source=="predomics_bin",]
+
+all_species_terinter.df= all_species.df[all_species.df$source=="predomics_ter",]
+## indval vs bininter
+merged_indval_bin = merge(all_species_indval.df, all_species_bininter.df, by=c("feature","comparison","data"), all.x = TRUE)
+#merged_indval_bin_clean = na.omit(merged_indval_bin)
+
+# scatterplot feat import vs indicator value (inval/bininter)
+# ggplot(merged_indval_bin_clean, aes(x=featureImportance, y=indicator_value))+
+#   geom_point()+
+#   labs(x = "Feature importance", y = "Indicator value") +
+#   facet_grid(data ~ comparison) +
+#   theme_bw()
+
+## indval vs bininter vs terinter
+merged_indval_bin_ter = merge(merged_indval_bin, all_species_terinter.df, by=c("feature","comparison","data"), all.x = TRUE)
+#merged_indval_ter_clean = na.omit(merged_indval_ter)
+# View(inval_terinter_species)
+
+indval_species = merged_indval_bin_ter[merged_indval_bin_ter$IsIndSp.x==1,]
+bininter_species = merged_indval_bin_ter[merged_indval_bin_ter$IsIndSp.y==1,]
+terinter_species = merged_indval_bin_ter[merged_indval_bin_ter$IsIndSp==1,]
+
+# get indics_species from indval and bininter
+indval_bininter_species= rbind(indval_species, bininter_species)
+indval_bininter_species$color= ifelse(indval_bininter_species$IsIndSp.x==1 & indval_bininter_species$IsIndSp.y==0,
+                                      -1, 
+                                      ifelse(indval_bininter_species$IsIndSp.x==1 & indval_bininter_species$IsIndSp.y==1, 0, 1))
+indval_bininter_species$color <- factor(indval_bininter_species$color, levels=c(-1,0,1), labels = c("indVal-only","indVal-Pred_bin","Pred_bin-only"))
+
+# get indics_species from indval and terinter
+indval_terinter_species= rbind(indval_species, terinter_species)
+indval_terinter_species$color= ifelse(indval_terinter_species$IsIndSp.x==1 & indval_terinter_species$IsIndSp==0,
+                                      -1, 
+                                      ifelse(indval_terinter_species$IsIndSp.x==1 & indval_terinter_species$IsIndSp==1, 0, 1))
+indval_terinter_species$color <- factor(indval_terinter_species$color, levels=c(-1,0,1), labels = c("indVal-only","indVal-Pred_ter","Pred_ter-only"))
+# indval_terinter_species$label <- ifelse(indval_terinter_species$Species %in% "Nemipterus peronii", as.character(indval_terinter_species$Species),NA)
+# match("Nemipterus peronii", indval_terinter_species$Species)
+# basic scatterplot
+indval.feat1 = ggplot(unique(indval_bininter_species), aes(x=featureImportance.x, y=indicator_value)) + 
+  geom_point(aes(color=color)) + 
+  stat_cor(method = "spearman") + 
+  #geom_text_repel(aes(label=label)) +  xlim(0,40) + ylim(0,1)+
+  # coord_cartesian(xlim = c(0, 35))+
+  labs(x= "feature_importance", y= "indicator_value", title = "Indval vs bininter", color = "species_source")+
+  facet_grid(data ~ comparison) +
+  theme_bw() #+
+  #theme(legend.position = "right")
+
+indval.feat1
+# indval_bininter_species$color <- factor(indval_terinter_species$color, levels=c(-1,0,1), labels = c("indVal-only","indVal-Pred","Pred-only"))
+# # indval_bininter_species$label <- ifelse(indval_bininter_species$featImport.y>30,as.character(indval_bininter_species$Species),NA)
+
+indval.feat2 = ggplot(unique(indval_terinter_species), aes(x=featureImportance.y, y=indicator_value)) + 
+  geom_point(aes(color=color)) +
+  #geom_text_repel(aes(label=label)) + 
+  stat_cor(method = "spearman") +
+  # coord_cartesian(xlim = c(0, 35))+
+  labs(x= "feature_importance", y= "indicator_value", title = "Indval vs terinter", color = "species_source")+
+  facet_grid(data ~ comparison) +
+  theme_bw() #+
+  #theme(legend.position = "none")
+
+indval.feat2
+
+# scatterplot feat import vs indicator value (inval/terinter)
+# ggplot(merged_indval_ter_clean, aes(x=featureImportance, y=indicator_value))+
+#   geom_point()+
+#   labs(x = "Feature importance", y = "Indicator value") +
+#   facet_grid(data ~ comparison) +
+#   theme_bw()
+```

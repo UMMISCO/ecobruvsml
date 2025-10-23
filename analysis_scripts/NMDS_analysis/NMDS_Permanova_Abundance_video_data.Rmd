@@ -1,0 +1,1225 @@
+---
+title: "Analysis report on video data"
+author: "Estephe Kana, Eugeni Belda & Edi Prifti"
+date: "`r Sys.Date()`"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+This report presents the comparative analysis between an **Indval** and **Predomics**. **Indval** method is used by ecologist to determine the occurrence or abundance of a small set of indicator species, as an alternative to sampling the entire community. In the machine learning package **Predomics**, we will use the algorithm **Terbeam** with languages **terinter** and **bininter** to perform the same analysis and compare their results. For these analysis, we will use the dataset from Baletaud et al. on «Baited video reveal fish diversity in the vast inter‑reef habitats of a marine tropical lagoon» that contains 148 species from two sets of habitat: Inshore (Bay + Lagoon) and Offshore (Barrier zone). 
+
+### Loading packages
+Here we are loading the necessary packages for the analysis
+```{r load the packages, message=FALSE, warning=FALSE}
+library(readr) # for data import
+library(momr) # for normalizing, visualizing and microbiome analyses
+library(ggplot2) # for plots
+library(gridExtra) # for multiple plots
+library(vegan) # for ecological analyses
+library(viridis) # for colour maps
+library(stats) # for euclidean distance computation
+library(predomics) # loading predomics
+library(patchwork) # to display multiples graphs in the same figure
+library(dplyr)
+library(reshape2)
+library(plyr)
+library(ggrepel)
+library(ggVennDiagram)
+library(ggpubr)
+library(ggrepel)
+library(labdsv) # for Indicator Species Analysis
+```
+
+## Venn diagram on indval, terinter and bininter species for abundance data
+
+The Venn diagram shows the distribution of indicator species across each method. As we can see in the figure, we have 15 core species shared by all the methods, 9 only for terinter, 14 only for IndVal and 1 only for bininter. We also noticed that 29 indicator species are shared between Indval and bininter methods. 
+```{r plotting venndiagram, message=FALSE,results='hide', warning=FALSE, fig.height = 6, fig.width = 10, warning=FALSE}
+df1 <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/InValSpecies_video_data.csv", show_col_types = FALSE))
+
+# View(df1)
+
+df2 <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/indicSpeciesPredomics/terBeam_terinter/IndicSpeciesPredomics_terBeam_terinter.csv", show_col_types = FALSE))
+
+# View(df2)
+
+df3 <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/indicSpeciesPredomics/terBeam_bininter/IndicSpeciesPredomics_terBeam_bininter.csv", show_col_types = FALSE))
+
+# View(df3)
+
+# define combine table for Indval and predomics_terinter species
+
+inval_terinter_species <- merge(df1, df2, by= "Species", all = TRUE)
+
+# View(inval_terinter_species)
+
+inval_predomics_species <- merge(inval_terinter_species, df3, by= "Species", all = TRUE)
+
+# View(inval_predomics_species)
+
+# View(inval_terinter_species)
+indval_species = filter(inval_predomics_species, IsIndSpec == 1)
+terinter_species = filter(inval_predomics_species, IsInFBM.x == 1)
+bininter_species = filter(inval_predomics_species, IsInFBM.y == 1)
+filter <- list(ind=indval_species$Species,
+              ter=terinter_species$Species,
+              bin= bininter_species$Species)
+
+# pdf(file="/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/plots/venn_diagram.pdf", h=6, w=8)
+venn_abund <- ggVennDiagram(filter, set_size = 5, label_size = 5, label = "count") + scale_fill_gradient(low="gray",high = "lightblue") + guides(fill = guide_legend(title = "IndicSpecies")) + theme(legend.title = element_text(color = "black"), legend.position = "bottom")
+venn_abund
+
+```
+
+## Venn diagram on indval, terinter and bininter species for presence/absence data
+
+The Venn diagram shows the distribution of indicator species across each method. As we can see in the figure, we have 15 core species shared by all the methods, 9 only for terinter, 14 only for IndVal and 1 only for bininter. We also noticed that 29 indicator species are shared between Indval and bininter methods.
+
+```{r plotting venndiagram pa, message=FALSE,results='hide', warning=FALSE, fig.height = 6, fig.width = 10, warning=FALSE}
+df1_pa <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/InValSpecies_video_data_pres_abs.csv", show_col_types = FALSE))
+
+# View(df1)
+
+df2_pa <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/indicSpeciesPredomics/terBeam_terinter/IndicSpecies_predomicsResults_Offshore_Inshore_pres_abs.csv", show_col_types = FALSE))
+
+# View(df2)
+
+df3_pa <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/indicSpeciesPredomics/terBeam_bininter/IndicSpecies_predomicsResults_Offshore_Inshore_pres_abs.csv", show_col_types = FALSE))
+
+# View(df3)
+
+# define combine table for Indval and predomics_terinter species
+
+inval_terinter_species_pa <- merge(df1_pa, df2_pa, by= "Species", all = TRUE)
+
+# View(inval_terinter_species)
+
+inval_predomics_species_pa <- merge(inval_terinter_species_pa, df3_pa, by= "Species", all = TRUE)
+
+# View(inval_predomics_species)
+
+# View(inval_terinter_species)
+indval_species_pa = filter(inval_predomics_species_pa, IsIndSpec == 1)
+terinter_species_pa = filter(inval_predomics_species_pa, IsInFBM.x == 1)
+bininter_species_pa = filter(inval_predomics_species_pa, IsInFBM.y == 1)
+filter_pa <- list(ind=indval_species_pa$Species,
+                  ter=terinter_species_pa$Species,
+                  bin= bininter_species_pa$Species)
+
+# pdf(file="/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/plots/venn_diagram.pdf", h=6, w=8)
+venn_pa <- ggVennDiagram(filter_pa, set_size = 5, label_size = 5, label = "count") + scale_fill_gradient(low="gray",high = "lightblue") + guides(fill = guide_legend(title = "IndicSpecies")) + theme(legend.title = element_text(color = "black"), legend.position = "bottom")
+venn_pa
+
+pdf(file="/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/venndiagram_pred_vs_indval.pdf", h=5, w=8)
+venn_abund + venn_pa + plot_annotation(tag_levels = 'A')
+dev.off()
+
+```
+## Visualization of predomics Models performances (Terinter, bininter)
+
+- Based on the below figures, we can see that terinter and bininter are performing well in terms of the differents evaluation metrics, but terinter still having better performances than bininter. 
+
+``` {r visualization of models performances, message=FALSE,results='hide', warning=FALSE, fig.height = 10, fig.width = 10}
+###########
+
+## First integrated visualization= performance of models in training/testing steps
+
+##############
+
+#Get the files corresponding to the saved objects of each binary prediction task
+root_path= "/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/"
+
+# get alldatalist for terinter
+path= paste(root_path, paste("terBeam", "terinter", sep="_"), sep="/")
+files <- list.files(path, pattern = ".Rda$", recursive = TRUE)
+#integrate all of them in single list
+alldatalist.video.terinter <- list()
+for(f in files)
+{
+  #print(f)
+  fobj <- load(paste(path,f,sep = "/"))
+  fobj <- get(fobj)
+  alldatalist.video.terinter[[gsub("\\/.*","", f)]] <- fobj
+}
+
+# get alldatalist for bininter
+path= paste(root_path, paste("terBeam", "bininter", sep="_"), sep="/")
+files <- list.files(path, pattern = ".Rda$", recursive = TRUE)
+#integrate all of them in single list
+alldatalist.video.bininter <- list()
+for(f in files)
+{
+  #print(f)
+  fobj <- load(paste(path,f,sep = "/"))
+  fobj <- get(fobj)
+  alldatalist.video.bininter[[gsub("\\/.*","", f)]] <- fobj
+}
+
+# combine all results in one list
+alldatalist.video = list()
+alldatalist.video$bininter = alldatalist.video.bininter
+alldatalist.video$terinter = alldatalist.video.terinter
+
+# Build a list to save the needed datasets for plotting
+digest.list <- list()
+for (m in names(alldatalist.video)) {
+    i= "Offshore_vs_Inshore"
+    iobj <- alldatalist.video[[m]][[i]][["digest"]]
+    #List to save the datasets for each digest results object
+    ilist <- list()
+    #iterate over acc and auc tables in cv$scores (source of boxplot visualization in digest plots)
+    for(t in c("generalization.auc","generalization.acc"))
+    {
+      #print(t)
+      #Get the data
+      tdf <- iobj$cv$scores[[t]]
+      #exclude the na
+      tdf <- tdf[rowSums(!is.na(tdf))>0,]
+      #melt + process for plotting
+      tdf <- data.frame(parsimony = rownames(tdf), tdf)
+      tdf <- melt(tdf, id.vars = "parsimony")
+      #Add the comparison (the i)
+      tdf$comparison <- i
+      #Add the variable (here habitat)
+      tdf$source <- "Habitat"
+      # Add the algorithm
+      tdf$algorithm <- m
+      #Save
+      digest.list[[t]][[i]][[m]] <- tdf
+    }
+    #iterate over the empirical performance data of best model in each prediction task (source of lineplot visualization in digest plots)
+    for(t in c("accuracy_","auc_","recall_","precision_"))
+    {
+      #print(t)
+      tdf <- data.frame(value=iobj$best$scores[[t]], 
+                        parsimony=names(iobj$best$scores[[t]]),
+                        comparison=i,
+                        source="Habitat",
+                        algorithm= m)
+      #Save
+      digest.list[[t]][[i]][[m]] <- tdf
+    }
+  }
+  
+  #For each sub-element in digest.list, do the rbind of the dataframes of each binary prediction task
+  for (n in names(digest.list)) {
+    digest.list[[n]] <- lapply(digest.list[[n]], function(x){do.call("rbind", x)})
+  }
+  #For each element in digest.list, do the rbind of the dataframes of each binary prediction task
+  digest.list <- lapply(digest.list, function(x){do.call("rbind", x)})
+  
+  #Build the visualization plots, first boxplots of acc/auc across training/test CV data
+  digest.plots <- list()
+  for(k in c("generalization.auc","generalization.acc"))
+  {
+    kdf <- digest.list[[k]]
+    #Factorize the parsimony variable
+    kdf$comparison <- factor(kdf$comparison)
+    # kdf$comparison <- factor(kdf$comparison,
+    #                         levels = levels(kdf$parsimony)[order(as.numeric(gsub("k_","", levels(kdf$parsimony))))])
+    #Do the integrated plot (here the facet_grid(.~comparison) command stratifies the plot by comparison)
+    # plot by comparison
+    digest.plots[[k]] <- ggplot(data = kdf, aes(y = value, x = comparison)) +
+      geom_point(aes(color = "dark"), position = position_jitterdodge(dodge.width = 0.9), size = 1, alpha = 0.5)+
+      geom_boxplot(notch = FALSE, outlier.colour = NA, position = position_dodge(width = 0.9), alpha = 0.5) +
+      ylab(gsub("^.*\\.","", k)) +
+      xlab("Comparison") +
+      ggtitle(gsub("\\..*$","", k)) +
+      ylim(c(0,1)) +
+      facet_grid(.~algorithm) +
+      theme_bw() +
+      # geom_hline(yintercept = unique(maj.class),col = "gray", linetype = "dashed") +
+      theme(legend.position = "bottom",
+            legend.direction = "horizontal") +
+            guides(colour = "none") #+
+      # theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size = 6)) # +
+      # theme(strip.text.x=element_text(angle=90, size=8))
+  }
+  #Second, lineplots of empirical performances
+  for(i in c("accuracy_","auc_","recall_","precision_"))
+  {
+    idf <- digest.list[[i]]
+    #Factorize the parsimony variable
+    idf$parsimony <- factor(idf$parsimony)
+    idf$parsimony <- factor(idf$parsimony,
+                            levels = levels(idf$parsimony)[order(as.numeric(gsub("k_","", levels(idf$parsimony))))])
+    #get the data for best model in each case as dataframe, save first in list for each comparison (1 dataframe per comparison, single line)
+    ibest <- list()
+    for(c in unique(idf$comparison))
+    {
+      ibest[[c]] <- data.frame(learner=alldatalist.video.terinter[[c]]$digest$best$model$learner,
+                               language=alldatalist.video.terinter[[c]]$digest$best$model$language,
+                               variable=alldatalist.video.terinter[[c]]$digest$best$model[[i]],
+                               variable.source=i,
+                               k=length(alldatalist.video.terinter[[c]]$digest$best$model$indices_),
+                               comparison=c)
+    }
+    #merge individual dataframes in single dataframe (rbind passed to do.call function + list ibest)
+    ibest <- do.call("rbind",ibest)
+    #Add the labels that we want to visualize corresponding to the best model of each prediction task
+    ibest$label <- paste(ibest$comparison,"; L:", ibest$learner,"_", ibest$language,"; F:", signif(ibest$variable,2), "; K=", ibest$k, sep = "")
+    ibest$x <- (length(unique(idf$parsimony))+1)/2
+    ibest$y <- seq(1,nrow(ibest),1)/20
+    #do the integrated plot (colour lines and points by comparisons + add the infos for the best model in each comparison stored in the ibest table) + save
+    digest.plots[[i]] <- ggplot(data = idf, aes(x = parsimony, y = value, group = 1)) +
+      geom_line(aes(group=comparison,color = comparison)) +
+      geom_point(size = 2, alpha = 1) +
+      geom_text(data=ibest, aes(x=x,y=y, label=label, colour=comparison), size=2, inherit.aes = FALSE) +
+      ylab(i) +
+      xlab("Model parsimony") +
+      ggtitle("Emprical performance") +
+      ylim(c(0,1)) +
+      theme_bw() +
+      facet_grid(.~algorithm) +
+      # geom_hline(yintercept = mean(maj.class), col = "gray", linetype = "dashed") +
+      theme(legend.position = "none",
+            legend.direction = "horizontal",
+            legend.title = element_blank())+
+      theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size = 7))
+  }
+
+#Integrated visualization as in the output of digest function but now integrating all pairwise comparisons across levels of habitat variable
+pdf(file="/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/models_performances_pred_video_data_pa.pdf", h=4, w=6)
+grid.arrange(#digest.plots$empirical.auc,
+             digest.plots$generalization.auc, 
+             #digest.plots$empirical.acc, 
+             digest.plots$generalization.acc, 
+             digest.plots$accuracy_,
+             digest.plots$auc_,
+             #digest.plots$recall_,
+             #digest.plots$precision_,
+            ncol=2, nrow=2)
+
+dev.off()
+```
+## Visualization of predomics results on TerBeam-bininter
+
+- As terinter was the one having the best performances comparing to bininter, we decide to show its indicator species with their feature importance, feature abondance as shown in cliffdelta and feature prevalence
+
+- In predomics FBM(Family of Best Models), we have 11 indicator species for Offshore (Barrier zone) and 15 for Inshore (Bay + Lagoon)
+
+- The indicator species for Offshore are more important than those for Inshore based on their feature importance.
+
+```{r predomics results terinter, message=FALSE,results='hide', warning=FALSE, fig.height = 10, fig.width = 10, echo=FALSE}
+video_terinter.fmbObj =list()
+for (i in names(alldatalist.video.terinter)){
+  res_clf= alldatalist.video.terinter[[i]]$fit
+  X= alldatalist.video.terinter[[i]]$comparison_data$X_train
+  y= alldatalist.video.terinter[[i]]$comparison_data$y_train
+  
+  video_terinter.fmbObj[[i]] <- getImportanceFeaturesFBMobjects(clf_res = res_clf, X = X, y = y, verbose = TRUE)
+  #build list of objects to combine
+}
+pdf(file="/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/predomics_results_video_data_pa.pdf", h=8, w=12)
+# plot FBM + Feat import + CliffDelta + Feat prev
+plotImportanceFeaturesFBMobjects(FBMobjList = video_terinter.fmbObj, verbose = TRUE, nb.top.features = 100, makeplot = FALSE)
+
+dev.off()
+
+```
+## Analyze the correlation between indicator value and Feature importance based on abundance data
+
+- In the first figure, we can see a positive and highly significant correlation between the indicator value and feature importance for core species of Indval and predomics algorithms.
+- The core species **Nemipterus peronii** has the highest value of feature importance for bininter and a much lower value for the terinter model
+- The second figure shows that the core species for Indval-terinter or indval-bininter are the most abundant than those for each model separately.
+
+```{r Correlation ind_value and feat_import on abund, message=FALSE,results='hide', warning=FALSE, fig.height = 5, fig.width = 10}
+# get indics_species from indval and terinter
+indval_terinter_species= rbind(indval_species, terinter_species)
+
+indval_terinter_species$color= ifelse(indval_terinter_species$IsIndSpec==1 & indval_terinter_species$IsInFBM.x==0,
+                                      -1, 
+                                      ifelse(indval_terinter_species$IsIndSpec==1 & indval_terinter_species$IsInFBM.x==1, 0, 1))
+indval_terinter_species$color <- factor(indval_terinter_species$color, levels = c(-1,0,1))
+
+# get indics_species from indval and bininter
+indval_bininter_species= rbind(indval_species, bininter_species)
+indval_bininter_species$color= ifelse(indval_bininter_species$IsIndSpec==1 & indval_bininter_species$IsInFBM.y==0,
+                                      -1, 
+                                      ifelse(indval_bininter_species$IsIndSpec==1 & indval_bininter_species$IsInFBM.y==1, 0, 1))
+indval_bininter_species$color <- factor(indval_bininter_species$color, levels = c(-1,0,1))
+
+# basic scatterplot
+indval_terinter_species$color <- factor(indval_terinter_species$color, levels=c(-1,0,1), labels = c("indVal-only","indVal-Pred","Pred-only"))
+indval_terinter_species$label <- ifelse(indval_terinter_species$Species %in% "Nemipterus peronii", as.character(indval_terinter_species$Species),NA)
+match("Nemipterus peronii", indval_terinter_species$Species)
+indval.feat1 = ggplot(unique(indval_terinter_species), aes(x=featImport.x, y=indicator_value)) + 
+  geom_point(aes(color=color)) + 
+  stat_cor(method = "spearman") + 
+  geom_text_repel(aes(label=label)) +  xlim(0,40) + ylim(0,1)+
+  # coord_cartesian(xlim = c(0, 35))+
+  labs(x= "feature_importance", y= "indicator_value", title = "Indval vs terinter", color = "speciesPrev")+
+  theme(legend.position = "right")
+
+indval_bininter_species$color <- factor(indval_bininter_species$color, levels=c(-1,0,1), labels = c("indVal-only","indVal-Pred","Pred-only"))
+indval_bininter_species$label <- ifelse(indval_bininter_species$featImport.y>30,as.character(indval_bininter_species$Species),NA)
+
+indval.feat2 = ggplot(unique(indval_bininter_species), aes(x=featImport.y, y=indicator_value)) + 
+  geom_point(aes(color=color)) +
+  geom_text_repel(aes(label=label)) + 
+  stat_cor(method = "spearman") +  xlim(0,40) + ylim(0,1)+
+  # coord_cartesian(xlim = c(0, 35))+
+  labs(x= "feature_importance", y= "indicator_value", title = "Indval vs bininter", color = "speciesPrev")+
+  theme(legend.position = "none")
+
+cor_scatt_abund <- ggarrange(indval.feat1,
+                      indval.feat2, widths=c(2.6,2))
+cor_scatt_abund
+
+##boxplot bininter feat imp
+df.1 <- unique(indval_bininter_species)
+df.1.plot <- ggplot(df.1, aes(x=color, y=featImport.y)) + 
+  geom_boxplot(outlier.shape = NA) +  
+  geom_point(position = position_jitter(.05), alpha=.5) + 
+  stat_compare_means(method = "wilcox", comparisons = combn(x = levels(df.1$color), m = 2, simplify = FALSE)) + 
+  labs(x= "species_prev", y= "Feature importance") + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+##boxplot bininter feat imp
+df.2 <- unique(indval_terinter_species)
+df.2.plot <- ggplot(df.2, aes(x=color, y=featImport.x)) + 
+  geom_boxplot(outlier.shape = NA) +  
+  geom_point(position = position_jitter(.05), alpha=.5) + 
+  stat_compare_means(method = "wilcox", comparisons = combn(x = levels(df.2$color), m = 2, simplify = FALSE)) + 
+  labs(x= "species_prev", y= "Feature importance") + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+cor_box_abund <- grid.arrange(df.2.plot + ggtitle("terinter"), 
+                    df.1.plot + ggtitle("bininter"), ncol=2)
+cor_box_abund
+```
+## Analyze the correlation between indicator value and Feature importance based on presence/absence 
+
+- In the first figure, we can see a positive and highly significant correlation between the indicator value and feature importance for core species of Indval and predomics algorithms.
+- The core species **Nemipterus peronii** has the highest value of feature importance for bininter and a much lower value for the terinter model
+- The second figure shows that the core species for Indval-terinter or indval-bininter are the most abundant than those for each model separately.
+
+```{r Correlation ind_value and feat_import on pa, message=FALSE,results='hide', warning=FALSE, fig.height = 5, fig.width = 10}
+# get indics_species from indval and terinter
+indval_terinter_species_pa= rbind(indval_species_pa, terinter_species_pa)
+
+indval_terinter_species_pa$color= ifelse(indval_terinter_species_pa$IsIndSpec==1 & indval_terinter_species_pa$IsInFBM.x==0,
+                                      -1, 
+                                      ifelse(indval_terinter_species_pa$IsIndSpec==1 & indval_terinter_species_pa$IsInFBM.x==1, 0, 1))
+indval_terinter_species_pa$color <- factor(indval_terinter_species_pa$color, levels = c(-1,0,1))
+
+# get indics_species from indval and bininter
+indval_bininter_species_pa= rbind(indval_species_pa, bininter_species_pa)
+indval_bininter_species_pa$color= ifelse(indval_bininter_species_pa$IsIndSpec==1 & indval_bininter_species_pa$IsInFBM.y==0,
+                                      -1, 
+                                      ifelse(indval_bininter_species_pa$IsIndSpec==1 & indval_bininter_species_pa$IsInFBM.y==1, 0, 1))
+indval_bininter_species_pa$color <- factor(indval_bininter_species_pa$color, levels = c(-1,0,1))
+
+# basic scatterplot
+indval_terinter_species_pa$color <- factor(indval_terinter_species_pa$color, levels=c(-1,0,1), labels = c("indVal-only","indVal-Pred","Pred-only"))
+indval_terinter_species_pa$label <- ifelse(indval_terinter_species_pa$Species %in% "Nemipterus peronii", as.character(indval_terinter_species_pa$Species),NA)
+match("Nemipterus peronii", indval_terinter_species_pa$Species)
+indval.feat1_pa = ggplot(unique(indval_terinter_species_pa), aes(x=featImport.x, y=indicator_value)) + 
+  geom_point(aes(color=color)) + 
+  stat_cor(method = "spearman") + 
+  geom_text_repel(aes(label=label)) +  xlim(0,40) + ylim(0,1)+
+  # coord_cartesian(xlim = c(0, 35))+
+  labs(x= "feature_importance", y= "indicator_value", title = "Indval vs terinter", color = "speciesPrev")+
+  theme(legend.position = "right")
+
+indval_bininter_species_pa$color <- factor(indval_bininter_species_pa$color, levels=c(-1,0,1), labels = c("indVal-only","indVal-Pred","Pred-only"))
+indval_bininter_species_pa$label <- ifelse(indval_bininter_species_pa$featImport.y>30,as.character(indval_bininter_species_pa$Species),NA)
+
+indval.feat2_pa = ggplot(unique(indval_bininter_species_pa), aes(x=featImport.y, y=indicator_value)) + 
+  geom_point(aes(color=color)) + scale_color_manual(values = c("#F8766D", "#00BA38"))+
+  geom_text_repel(aes(label=label)) + 
+  stat_cor(method = "spearman") + xlim(0,40) + ylim(0,1)+
+  # coord_cartesian(xlim = c(0, 35))+ 
+  labs(x= "feature_importance", y= "indicator_value", title = "Indval vs bininter", color = "speciesPrev")+
+  theme(legend.position = "none")
+
+cor_scatt_pa <- ggarrange(indval.feat1_pa,
+                      indval.feat2_pa, widths=c(2.6,2))
+cor_scatt_pa
+
+##boxplot bininter feat imp
+df.1_pa <- unique(indval_bininter_species_pa)
+df.1_pa.plot <- ggplot(df.1_pa, aes(x=color, y=featImport.y)) + 
+  geom_boxplot(outlier.shape = NA) +  
+  geom_point(position = position_jitter(.05), alpha=.5) + 
+  stat_compare_means(method = "wilcox", comparisons = combn(x = levels(df.1_pa$color), m = 2, simplify = FALSE)) + 
+  labs(x= "species_prev", y= "Feature importance") + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+##boxplot bininter feat imp
+df.2_pa <- unique(indval_terinter_species_pa)
+df.2_pa.plot <- ggplot(df.2_pa, aes(x=color, y=featImport.x)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_point(position = position_jitter(.05), alpha=.5) +
+  stat_compare_means(method = "wilcox", comparisons = combn(x = levels(df.2_pa$color), m = 2, simplify = FALSE)) +
+  labs(x= "species_prev", y= "Feature importance") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+cor_box_pa <- grid.arrange(df.2_pa.plot + ggtitle("terinter"), 
+                      df.1_pa.plot + ggtitle("bininter"), ncol=2)
+
+cor_box_pa
+```
+
+## NMDS (Non-metric multidimensional distance scaling) on community species, indval species, terinter species and bininter species on Bray-curtis distance
+
+- The first nmds plot for all community species shows less separate set of species for stations
+- The second nmds plot for the 44 indicator species obtained using indval method shows a better clustering of species accross stations
+- The third and fourth plots seems to be better than the second also
+
+```{r plot nmds on abundance of species, message=FALSE,results='hide', warning=FALSE, fig.height = 10, fig.width = 10}
+# load the data
+load(file="/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/video_data_object.rda")
+
+# compute nmds on community data
+nmds.community= metaMDS(t(sm$X), distance = "bray")
+
+# compute nmds on Indval species data
+df1 <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/InValSpecies_video_data.csv", show_col_types = FALSE))
+
+## select data for indval species and compute nmds
+indval_data = filter(df1, IsIndSpec == 1)
+indval_data = sm$X[rownames(sm$X) %in% indval_data$Species, ]
+nmds.indval= metaMDS(t(indval_data), distance = "bray")
+nmds.indval.scores = as.data.frame(vegan::scores(nmds.indval, "species"))
+
+# compute nmds on terinter species data
+df2 <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/indicSpeciesPredomics/terBeam_terinter/IndicSpeciesPredomics_terBeam_terinter.csv", show_col_types = FALSE))
+
+## select data for terinter species and compute nmds
+terinter_data = filter(df2, IsInFBM == 1)
+terinter_data = sm$X[rownames(sm$X) %in% terinter_data$Species, ]
+nmds.terinter= metaMDS(t(terinter_data), distance = "bray")
+
+# compute nmds on bininter species data
+df3 <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/indicSpeciesPredomics/terBeam_bininter/IndicSpeciesPredomics_terBeam_bininter.csv", show_col_types = FALSE))
+
+## select data for bininter species and compute nmds
+bininter_data = filter(df3, IsInFBM == 1)
+bininter_data = sm$X[rownames(sm$X) %in% bininter_data$Species, ]
+nmds.bininter= metaMDS(t(bininter_data), distance = "bray")
+
+# store NMDS data in a list
+nmds_data =list()
+nmds_data[["community"]] = nmds.community
+nmds_data[["indval"]] = nmds.indval
+nmds_data[["terinter"]] = nmds.terinter
+nmds_data[["bininter"]] = nmds.bininter
+
+# plotting NMDS of each set of species
+
+# function for ellipsess 
+veganCovEllipse <- function (cov, center = c(0, 0), scale = 1, npoints = 100) 
+{
+  theta <- (0:npoints) * 2 * pi/npoints
+  Circle <- cbind(cos(theta), sin(theta))
+  t(center + scale * t(Circle %*% chol(cov)))
+}
+  
+nmds.plots = list()
+for (i in names(nmds_data)){
+  nmds = nmds_data[[i]]
+  nmds.sites = data.frame(nmds$points)
+  nmds.sites$Habitat = sm$sample_info$Habitat
+  nmds.sites$Station <- rownames(nmds.sites)
+  nmds.sites$Site <- factor(sm$sample_info$Site[match(nmds.sites$Station, sm$sample_info$Station)], levels = c("ABAR","MBAR","ALAG","MLAG","ABAY","MBAY"))
+  nmds.sites$Site <- as.character(nmds.sites$Site)
+  
+  nmds.sites$Site[nmds.sites$Site %in% "ABAR"] <- "Abor? Barrier"
+  nmds.sites$Site[nmds.sites$Site %in% "MBAR"] <- "M'b?r? Barrier"
+  nmds.sites$Site[nmds.sites$Site %in% "ALAG"] <- "Abor? Lagoon"
+  nmds.sites$Site[nmds.sites$Site %in% "MLAG"] <- "M'b?r? Lagoon"
+  nmds.sites$Site[nmds.sites$Site %in% "ABAY"] <- "Abor? Bay"
+  nmds.sites$Site[nmds.sites$Site %in% "MBAY"] <- "M'b?r? Bay"
+  nmds.sites$Site <- factor(nmds.sites$Site, levels = c("Abor? Barrier", "M'b?r? Barrier","Abor? Lagoon", "M'b?r? Lagoon","Abor? Bay","M'b?r? Bay" ))
+  unique(nmds.sites$Site)
+  
+  nmds.species = data.frame(nmds$species)
+  nmds.species$Species = rownames(nmds.species)
+  
+  dfEllSite <- data.frame() #sets up a data frame before running the function.
+  for(g in levels(nmds.sites$Site)){
+    dfEllSite <- rbind(dfEllSite, cbind(as.data.frame(with(nmds.sites[nmds.sites$Site==g,],
+                                                           veganCovEllipse(cov.wt(cbind(MDS1,MDS2),wt=rep(1/length(MDS1),length(MDS1)))$cov,center=c(mean(MDS1),mean(MDS2)))))
+                                        ,Site=g))
+  }
+  
+  siteScoresMeanPts <- aggregate(nmds.sites[ ,c("MDS1", "MDS2")],
+                                 list(group = nmds.sites$Site), mean)
+  
+  nmds.plots[[i]] <- ggplot(data = nmds.sites, aes(x=MDS1, y=MDS2, colour=Site)) +
+    geom_point(shape=10, size=2) + # add the point markers
+    geom_path(data = dfEllSite, aes(x = MDS1, y = MDS2, group = Site), linewidth = 1.5) +
+    #geom_text(data=spScores,aes(x=MDS1,y=MDS2,label= species),alpha=0.5, color = "grey50", size = 3.5) +  # add the species labels
+    ggtitle(i)+
+    geom_text_repel(data=nmds.species,
+                    aes(x=MDS1,y=MDS2,label=Species, # hjust=0.5*(1-sign(MDS1)),vjust=0.5*(1-sign(MDS2))
+                    ),
+                    color="grey50", segment.color = "grey80", min.segment.length	= 0.5, alpha=0.5, size=2.5, fontface = "italic",
+                    max.overlaps = 15) + #, box.padding = 0.5, force = 0.1, force_pull = 2
+  
+    scale_colour_manual(values=c("Abor? Barrier" = "#0072B2", "Abor? Bay" = "#D55E00", "Abor? Lagoon" = "#009E73", "M'b?r? Barrier" = "#56B4E9", "M'b?r? Bay" = "#E69F00", "M'b?r? Lagoon" = "#F0E442")) +
+    theme(panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.background = element_rect(fill = "white", colour = "black"),
+          legend.justification = c(0,1),
+          legend.position= c(0,1),
+          legend.direction = "horizontal",
+          legend.title = element_blank(),
+          legend.text = element_text(size = 6),
+          legend.background = element_blank()
+    )
+}
+nmds_abund <- grid.arrange(nmds.plots$community,
+                 nmds.plots$indval, 
+                 nmds.plots$terinter, 
+                 nmds.plots$bininter,
+                 ncol=2, nrow=2, widths = c(2.7,2.7), bottom= "NMDS on Abundance")
+
+nmds_abund
+
+```
+
+## NMDS (Non-metric multidimensional distance scaling) on community species, indval species, terinter species and bininter species on Jaccard distance
+
+- As for NMDS plot of data in abundance, the NMDS plot of data in presence/absence shows a clearer separation of species in their different habitats for the **bininter** model.
+
+```{r plot nmds on presence/absence of species, message=FALSE,results='hide', warning=FALSE, fig.height = 10, fig.width = 10}
+# load the data
+load(file="/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/video_data_object.rda")
+
+# compute nmds on community data
+nmds2.community= metaMDS(t(sm$X), distance = "jaccard")
+
+# compute nmds on Indval species data
+df1 <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/InValSpecies_video_data.csv", show_col_types = FALSE))
+
+## select data for indval species and compute nmds
+indval_data = filter(df1, IsIndSpec == 1)
+indval_data = sm$X[rownames(sm$X) %in% indval_data$Species, ]
+nmds2.indval= metaMDS(t(indval_data), distance = "jaccard")
+
+# compute nmds on terinter species data
+df2 <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/indicSpeciesPredomics/terBeam_terinter/IndicSpeciesPredomics_terBeam_terinter.csv", show_col_types = FALSE))
+
+## select data for terinter species and compute nmds
+terinter_data = filter(df2, IsInFBM == 1)
+terinter_data = sm$X[rownames(sm$X) %in% terinter_data$Species, ]
+nmds2.terinter= metaMDS(t(terinter_data), distance = "jaccard")
+
+# compute nmds on bininter species data
+df3 <- as.data.frame(read_csv("/data/projects/aime/analyses/metabarcoding/4.data_video_analysis/indicSpeciesPredomics/terBeam_bininter/IndicSpeciesPredomics_terBeam_bininter.csv", show_col_types = FALSE))
+
+## select data for bininter species and compute nmds
+bininter_data = filter(df3, IsInFBM == 1)
+bininter_data = sm$X[rownames(sm$X) %in% bininter_data$Species, ]
+nmds2.bininter= metaMDS(t(bininter_data), distance = "jaccard")
+
+# store NMDS data in a list
+nmds2_data =list()
+nmds2_data[["community"]] = nmds2.community
+nmds2_data[["indval"]] = nmds2.indval
+nmds2_data[["terinter"]] = nmds2.terinter
+nmds2_data[["bininter"]] = nmds2.bininter
+
+# plotting NMDS of each set of species
+
+# function for ellipsess 
+veganCovEllipse <- function (cov, center = c(0, 0), scale = 1, npoints = 100) 
+{
+  theta <- (0:npoints) * 2 * pi/npoints
+  Circle <- cbind(cos(theta), sin(theta))
+  t(center + scale * t(Circle %*% chol(cov)))
+}
+  
+nmds2.plots = list()
+for (i in names(nmds_data)){
+  nmds2 = nmds2_data[[i]]
+  nmds2.sites = data.frame(nmds2$points)
+  nmds2.sites$Habitat = sm$sample_info$Habitat
+  nmds2.sites$Station <- rownames(nmds2.sites)
+  nmds2.sites$Site <- factor(sm$sample_info$Site[match(nmds2.sites$Station, sm$sample_info$Station)], levels = c("ABAR","MBAR","ALAG","MLAG","ABAY","MBAY"))
+  nmds2.sites$Site <- as.character(nmds2.sites$Site)
+  
+  nmds2.sites$Site[nmds2.sites$Site %in% "ABAR"] <- "Abor? Barrier"
+  nmds2.sites$Site[nmds2.sites$Site %in% "MBAR"] <- "M'b?r? Barrier"
+  nmds2.sites$Site[nmds2.sites$Site %in% "ALAG"] <- "Abor? Lagoon"
+  nmds2.sites$Site[nmds2.sites$Site %in% "MLAG"] <- "M'b?r? Lagoon"
+  nmds2.sites$Site[nmds2.sites$Site %in% "ABAY"] <- "Abor? Bay"
+  nmds2.sites$Site[nmds2.sites$Site %in% "MBAY"] <- "M'b?r? Bay"
+  nmds2.sites$Site <- factor(nmds2.sites$Site, levels = c("Abor? Barrier", "M'b?r? Barrier","Abor? Lagoon", "M'b?r? Lagoon","Abor? Bay","M'b?r? Bay" ))
+  unique(nmds2.sites$Site)
+  
+  nmds2.species = data.frame(nmds2$species)
+  nmds2.species$Species = rownames(nmds2.species)
+  
+  dfEllSite2 <- data.frame() #sets up a data frame before running the function.
+  for(g in levels(nmds2.sites$Site)){
+    dfEllSite2 <- rbind(dfEllSite2, cbind(as.data.frame(with(nmds2.sites[nmds2.sites$Site==g,],
+                                                           veganCovEllipse(cov.wt(cbind(MDS1,MDS2),wt=rep(1/length(MDS1),length(MDS1)))$cov,center=c(mean(MDS1),mean(MDS2)))))
+                                        ,Site=g))
+  }
+  
+  siteScoresMeanPts <- aggregate(nmds2.sites[ ,c("MDS1", "MDS2")],
+                                 list(group = nmds2.sites$Site), mean)
+  
+  nmds2.plots[[i]] <- ggplot(data = nmds2.sites, aes(x=MDS1, y=MDS2, colour=Site)) +
+    geom_point(shape=10, size=2) + # add the point markers
+    geom_path(data = dfEllSite2, aes(x = MDS1, y = MDS2, group = Site), linewidth = 1.5) +
+    #geom_text(data=spScores,aes(x=MDS1,y=MDS2,label= species),alpha=0.5, color = "grey50", size = 3.5) +  # add the species labels
+    ggtitle(i)+
+    geom_text_repel(data=nmds2.species,
+                    aes(x=MDS1,y=MDS2,label=Species, # hjust=0.5*(1-sign(MDS1)),vjust=0.5*(1-sign(MDS2))
+                    ),
+                    color="grey50", segment.color = "grey80", min.segment.length	= 0.5, alpha=0.5, size=2.5, fontface = "italic",
+                    max.overlaps = 15) + #, box.padding = 0.5, force = 0.1, force_pull = 2
+  
+    scale_colour_manual(values=c("Abor? Barrier" = "#0072B2", "Abor? Bay" = "#D55E00", "Abor? Lagoon" = "#009E73", "M'b?r? Barrier" = "#56B4E9", "M'b?r? Bay" = "#E69F00", "M'b?r? Lagoon" = "#F0E442")) +
+    theme(panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.background = element_rect(fill = "white", colour = "black"),
+          legend.justification = c(0,1),
+          legend.position= c(0,1),
+          legend.direction = "horizontal",
+          legend.title = element_blank(),
+          legend.text = element_text(size = 6),
+          legend.background = element_blank()
+    )
+}
+nmds_pa <- grid.arrange(nmds2.plots$community,
+             nmds2.plots$indval, 
+             nmds2.plots$terinter, 
+             nmds2.plots$bininter,
+             ncol=2, nrow=2, widths = c(2.7,2.7), bottom= "NMDS on presence/absence")
+
+nmds_pa
+```
+
+## Data description with PCoA based on abundance and presence/absence of species
+
+By performing an environmental fitting in addition to a PCoA analysis on the abundance matrix for community species and indicator species for each model, we hoped to achieve a clear separation between the species that contribute the most to community clustering in the Inshore and Offshore habitats. This can be observed in the following figures. The same pattern emerges when repeating these analyses using presence/absence data.
+
+```{r PCoA analysis on abundance of species by Habitat, results='hide', message=FALSE, warning=FALSE, fig.height = 8, fig.width = 10}
+
+# Compute beta-diversity with Bray-Curtis method (pairwise sample distance from feature abundance data)
+## community data
+video_data.bray <- vegdist(x = t(sm$X), method = "bray")
+video_data.bray.pcoa <- cmdscale(video_data.bray, eig = TRUE)
+# Next extract the coordinate points for plotting with ggplot the two first ordination axis
+video_data.bray.pcoa.df <- data.frame(video_data.bray.pcoa$points)
+#Add the metadata to colour points by sample variables
+video_data.bray.pcoa.df <- merge(video_data.bray.pcoa.df, sm$sample_info, by.x = 0, by.y = "Spygen", all.x=TRUE)
+
+#visualization
+#visu ordination by Habitat
+ef.video_data.bray <- envfit(video_data.bray.pcoa, t(sm$X))
+ef.video_data.bray.df <- as.data.frame(ef.video_data.bray$vectors$arrows)
+ef.video_data.bray.df$r2 <- ef.video_data.bray$vectors$r
+ef.video_data.bray.df$pval <- ef.video_data.bray$vectors$pvals
+ef.video_data.bray.df$Dim1 <- ef.video_data.bray.df$Dim1*sqrt(ef.video_data.bray.df$r2)
+ef.video_data.bray.df$Dim2 <- ef.video_data.bray.df$Dim2*sqrt(ef.video_data.bray.df$r2)
+ef.video_data.bray.df <- ef.video_data.bray.df[order(ef.video_data.bray.df$pval, decreasing=FALSE),] 
+ef.video_data.bray.df$species <- rownames(ef.video_data.bray.df)
+
+# create the plot for species
+ef.video_data.bray.plot <- ggplot(video_data.bray.pcoa.df) +
+  geom_point(mapping = aes(x = X1, y = X2, colour=Habitat)) +
+  geom_segment(data = ef.video_data.bray.df,
+              aes(x = 0, xend = Dim1, y = 0, yend = Dim2),
+              arrow = arrow(length = unit(0.25, "cm")), colour = "orange") +
+  geom_text_repel(data = ef.video_data.bray.df, aes(x = Dim1, y = Dim2, label = species), size = 3) + 
+  xlab(paste("PCo1 [", signif((video_data.bray.pcoa$eig[1]/sum(video_data.bray.pcoa$eig)),2)*100,"%]", sep="")) + 
+  ylab(paste("PCo2 [", signif((video_data.bray.pcoa$eig[2]/sum(video_data.bray.pcoa$eig)),2)*100,"%]", sep="")) +
+  ggtitle("community species")
+
+## indval data
+
+indval_data.bray <- vegdist(x = t(indval_data), method = "bray") 
+indval_data.bray.pcoa <- cmdscale(indval_data.bray, eig = TRUE)
+# Next extract the coordinate points for plotting with ggplot the two first ordination axis
+indval_data.bray.pcoa.df <- data.frame(indval_data.bray.pcoa$points)
+#Add the metadata to colour points by sample variables
+indval_data.bray.pcoa.df <- merge(indval_data.bray.pcoa.df, sm$sample_info, by.x = 0, by.y = "Spygen", all.x=TRUE)
+
+#visualization
+#visu ordination by Habitat
+ef.indval_data.bray <- envfit(indval_data.bray.pcoa, t(indval_data))
+ef.indval_data.bray.df <- as.data.frame(ef.indval_data.bray$vectors$arrows)
+ef.indval_data.bray.df$r2 <- ef.indval_data.bray$vectors$r
+ef.indval_data.bray.df$pval <- ef.indval_data.bray$vectors$pvals
+ef.indval_data.bray.df$Dim1 <- ef.indval_data.bray.df$Dim1*sqrt(ef.indval_data.bray.df$r2)
+ef.indval_data.bray.df$Dim2 <- ef.indval_data.bray.df$Dim2*sqrt(ef.indval_data.bray.df$r2)
+ef.indval_data.bray.df <- ef.indval_data.bray.df[order(ef.indval_data.bray.df$pval, decreasing=FALSE),] 
+ef.indval_data.bray.df$species <- rownames(ef.indval_data.bray.df)
+
+# create the plot for species
+ef.indval_data.bray.plot <- ggplot(indval_data.bray.pcoa.df) +
+  geom_point(mapping = aes(x = X1, y = X2, colour=Habitat)) +
+  geom_segment(data = ef.indval_data.bray.df,
+              aes(x = 0, xend = Dim1, y = 0, yend = Dim2),
+              arrow = arrow(length = unit(0.25, "cm")), colour = "orange") +
+  geom_text_repel(data = ef.indval_data.bray.df, aes(x = Dim1, y = Dim2, label = species), size = 3) + 
+  xlab(paste("PCo1 [", signif((indval_data.bray.pcoa$eig[1]/sum(indval_data.bray.pcoa$eig)),2)*100,"%]", sep="")) + 
+  ylab(paste("PCo2 [", signif((indval_data.bray.pcoa$eig[2]/sum(indval_data.bray.pcoa$eig)),2)*100,"%]", sep="")) +
+  ggtitle("indval species")
+
+## terinter data
+
+terinter_data.bray <- vegdist(x = t(terinter_data), method = "bray") 
+terinter_data.bray.pcoa <- cmdscale(terinter_data.bray, eig = TRUE)
+# Next extract the coordinate points for plotting with ggplot the two first ordination axis
+terinter_data.bray.pcoa.df <- data.frame(terinter_data.bray.pcoa$points)
+#Add the metadata to colour points by sample variables
+terinter_data.bray.pcoa.df <- merge(terinter_data.bray.pcoa.df, sm$sample_info, by.x = 0, by.y = "Spygen", all.x=TRUE)
+
+#visualization
+#visu ordination by Habitat
+ef.terinter_data.bray <- envfit(terinter_data.bray.pcoa, t(terinter_data))
+ef.terinter_data.bray.df <- as.data.frame(ef.terinter_data.bray$vectors$arrows)
+ef.terinter_data.bray.df$r2 <- ef.terinter_data.bray$vectors$r
+ef.terinter_data.bray.df$pval <- ef.terinter_data.bray$vectors$pvals
+ef.terinter_data.bray.df$Dim1 <- ef.terinter_data.bray.df$Dim1*sqrt(ef.terinter_data.bray.df$r2)
+ef.terinter_data.bray.df$Dim2 <- ef.terinter_data.bray.df$Dim2*sqrt(ef.terinter_data.bray.df$r2)
+ef.terinter_data.bray.df <- ef.terinter_data.bray.df[order(ef.terinter_data.bray.df$pval, decreasing=FALSE),] 
+ef.terinter_data.bray.df$species <- rownames(ef.terinter_data.bray.df)
+
+# create the plot for species
+ef.terinter_data.bray.plot <- ggplot(terinter_data.bray.pcoa.df) +
+  geom_point(mapping = aes(x = X1, y = X2, colour=Habitat)) +
+  geom_segment(data = ef.terinter_data.bray.df,
+              aes(x = 0, xend = Dim1, y = 0, yend = Dim2),
+              arrow = arrow(length = unit(0.25, "cm")), colour = "orange") +
+  geom_text_repel(data = ef.terinter_data.bray.df, aes(x = Dim1, y = Dim2, label = species), size = 3) + 
+  xlab(paste("PCo1 [", signif((terinter_data.bray.pcoa$eig[1]/sum(terinter_data.bray.pcoa$eig)),2)*100,"%]", sep="")) + 
+  ylab(paste("PCo2 [", signif((terinter_data.bray.pcoa$eig[2]/sum(terinter_data.bray.pcoa$eig)),2)*100,"%]", sep="")) +
+  ggtitle("terinter species")
+
+## bininter data
+
+bininter_data.bray <- vegdist(x = t(bininter_data), method = "bray") 
+bininter_data.bray.pcoa <- cmdscale(bininter_data.bray, eig = TRUE)
+# Next extract the coordinate points for plotting with ggplot the two first ordination axis
+bininter_data.bray.pcoa.df <- data.frame(bininter_data.bray.pcoa$points)
+#Add the metadata to colour points by sample variables
+bininter_data.bray.pcoa.df <- merge(bininter_data.bray.pcoa.df, sm$sample_info, by.x = 0, by.y = "Spygen", all.x=TRUE)
+
+#visualization
+#visu ordination by Habitat
+ef.bininter_data.bray <- envfit(bininter_data.bray.pcoa, t(bininter_data))
+ef.bininter_data.bray.df <- as.data.frame(ef.bininter_data.bray$vectors$arrows)
+ef.bininter_data.bray.df$r2 <- ef.bininter_data.bray$vectors$r
+ef.bininter_data.bray.df$pval <- ef.bininter_data.bray$vectors$pvals
+ef.bininter_data.bray.df$Dim1 <- ef.bininter_data.bray.df$Dim1*sqrt(ef.bininter_data.bray.df$r2)
+ef.bininter_data.bray.df$Dim2 <- ef.bininter_data.bray.df$Dim2*sqrt(ef.bininter_data.bray.df$r2)
+ef.bininter_data.bray.df <- ef.bininter_data.bray.df[order(ef.bininter_data.bray.df$pval, decreasing=FALSE),] 
+ef.bininter_data.bray.df$species <- rownames(ef.bininter_data.bray.df)
+
+# create the plot for species
+ef.bininter_data.bray.plot <- ggplot(bininter_data.bray.pcoa.df) +
+  geom_point(mapping = aes(x = X1, y = X2, colour=Habitat)) +
+  geom_segment(data = ef.bininter_data.bray.df,
+              aes(x = 0, xend = Dim1, y = 0, yend = Dim2),
+              arrow = arrow(length = unit(0.25, "cm")), colour = "orange") +
+  geom_text_repel(data = ef.bininter_data.bray.df, aes(x = Dim1, y = Dim2, label = species), size = 3) + 
+  xlab(paste("PCo1 [", signif((bininter_data.bray.pcoa$eig[1]/sum(bininter_data.bray.pcoa$eig)),2)*100,"%]", sep="")) + 
+  ylab(paste("PCo2 [", signif((bininter_data.bray.pcoa$eig[2]/sum(bininter_data.bray.pcoa$eig)),2)*100,"%]", sep="")) +
+  ggtitle("bininter species")
+
+## plot PcoA results for all set of species
+grid.arrange(ef.video_data.bray.plot,
+             ef.indval_data.bray.plot, 
+             ef.terinter_data.bray.plot, 
+             ef.bininter_data.bray.plot,
+             ncol=2, nrow=2, widths = c(2.7,2.7), bottom= "Data Description based on abundance of species")
+```
+
+```{r PCoA analysis on presence/absence of species by Habitat, results='hide', message=FALSE, warning=FALSE, fig.height = 8, fig.width = 10}
+
+# Compute beta-diversity with Bray-Curtis method (pairwise sample distance from feature abundance data)
+## community data
+video_data.jac <- vegdist(x = t(sm$X), method = "jaccard")
+video_data.jac.pcoa <- cmdscale(video_data.jac, eig = TRUE)
+# Next extract the coordinate points for plotting with ggplot the two first ordination axis
+video_data.jac.pcoa.df <- data.frame(video_data.jac.pcoa$points)
+#Add the metadata to colour points by sample variables
+video_data.jac.pcoa.df <- merge(video_data.jac.pcoa.df, sm$sample_info, by.x = 0, by.y = "Spygen", all.x=TRUE)
+
+#visualization
+#visu ordination by Habitat
+ef.video_data.jac <- envfit(video_data.jac.pcoa, t(sm$X))
+ef.video_data.jac.df <- as.data.frame(ef.video_data.jac$vectors$arrows)
+ef.video_data.jac.df$r2 <- ef.video_data.jac$vectors$r
+ef.video_data.jac.df$pval <- ef.video_data.jac$vectors$pvals
+ef.video_data.jac.df$Dim1 <- ef.video_data.jac.df$Dim1*sqrt(ef.video_data.jac.df$r2)
+ef.video_data.jac.df$Dim2 <- ef.video_data.jac.df$Dim2*sqrt(ef.video_data.jac.df$r2)
+ef.video_data.jac.df <- ef.video_data.jac.df[order(ef.video_data.jac.df$pval, decreasing=FALSE),] 
+ef.video_data.jac.df$species <- rownames(ef.video_data.jac.df)
+
+# create the plot for species
+ef.video_data.jac.plot <- ggplot(video_data.jac.pcoa.df) +
+  geom_point(mapping = aes(x = X1, y = X2, colour=Habitat)) +
+  geom_segment(data = ef.video_data.jac.df,
+              aes(x = 0, xend = Dim1, y = 0, yend = Dim2),
+              arrow = arrow(length = unit(0.25, "cm")), colour = "orange") +
+  geom_text_repel(data = ef.video_data.jac.df, aes(x = Dim1, y = Dim2, label = species), size = 3) + 
+  xlab(paste("PCo1 [", signif((video_data.jac.pcoa$eig[1]/sum(video_data.jac.pcoa$eig)),2)*100,"%]", sep="")) + 
+  ylab(paste("PCo2 [", signif((video_data.jac.pcoa$eig[2]/sum(video_data.jac.pcoa$eig)),2)*100,"%]", sep="")) +
+  ggtitle("community species")
+
+## indval data
+
+indval_data.jac <- vegdist(x = t(indval_data), method = "jaccard") 
+indval_data.jac.pcoa <- cmdscale(indval_data.jac, eig = TRUE)
+# Next extract the coordinate points for plotting with ggplot the two first ordination axis
+indval_data.jac.pcoa.df <- data.frame(indval_data.jac.pcoa$points)
+#Add the metadata to colour points by sample variables
+indval_data.jac.pcoa.df <- merge(indval_data.jac.pcoa.df, sm$sample_info, by.x = 0, by.y = "Spygen", all.x=TRUE)
+
+#visualization
+#visu ordination by Habitat
+ef.indval_data.jac <- envfit(indval_data.jac.pcoa, t(indval_data))
+ef.indval_data.jac.df <- as.data.frame(ef.indval_data.jac$vectors$arrows)
+ef.indval_data.jac.df$r2 <- ef.indval_data.jac$vectors$r
+ef.indval_data.jac.df$pval <- ef.indval_data.jac$vectors$pvals
+ef.indval_data.jac.df$Dim1 <- ef.indval_data.jac.df$Dim1*sqrt(ef.indval_data.jac.df$r2)
+ef.indval_data.jac.df$Dim2 <- ef.indval_data.jac.df$Dim2*sqrt(ef.indval_data.jac.df$r2)
+ef.indval_data.jac.df <- ef.indval_data.jac.df[order(ef.indval_data.jac.df$pval, decreasing=FALSE),] 
+ef.indval_data.jac.df$species <- rownames(ef.indval_data.jac.df)
+
+# create the plot for species
+ef.indval_data.jac.plot <- ggplot(indval_data.jac.pcoa.df) +
+  geom_point(mapping = aes(x = X1, y = X2, colour=Habitat)) +
+  geom_segment(data = ef.indval_data.jac.df,
+              aes(x = 0, xend = Dim1, y = 0, yend = Dim2),
+              arrow = arrow(length = unit(0.25, "cm")), colour = "orange") +
+  geom_text_repel(data = ef.indval_data.jac.df, aes(x = Dim1, y = Dim2, label = species), size = 3) + 
+  xlab(paste("PCo1 [", signif((indval_data.jac.pcoa$eig[1]/sum(indval_data.jac.pcoa$eig)),2)*100,"%]", sep="")) + 
+  ylab(paste("PCo2 [", signif((indval_data.jac.pcoa$eig[2]/sum(indval_data.jac.pcoa$eig)),2)*100,"%]", sep="")) +
+  ggtitle("indval species")
+
+## terinter data
+
+terinter_data.jac <- vegdist(x = t(terinter_data), method = "jaccard") 
+terinter_data.jac.pcoa <- cmdscale(terinter_data.jac, eig = TRUE)
+# Next extract the coordinate points for plotting with ggplot the two first ordination axis
+terinter_data.jac.pcoa.df <- data.frame(terinter_data.jac.pcoa$points)
+#Add the metadata to colour points by sample variables
+terinter_data.jac.pcoa.df <- merge(terinter_data.jac.pcoa.df, sm$sample_info, by.x = 0, by.y = "Spygen", all.x=TRUE)
+
+#visualization
+#visu ordination by Habitat
+ef.terinter_data.jac <- envfit(terinter_data.jac.pcoa, t(terinter_data))
+ef.terinter_data.jac.df <- as.data.frame(ef.terinter_data.jac$vectors$arrows)
+ef.terinter_data.jac.df$r2 <- ef.terinter_data.jac$vectors$r
+ef.terinter_data.jac.df$pval <- ef.terinter_data.jac$vectors$pvals
+ef.terinter_data.jac.df$Dim1 <- ef.terinter_data.jac.df$Dim1*sqrt(ef.terinter_data.jac.df$r2)
+ef.terinter_data.jac.df$Dim2 <- ef.terinter_data.jac.df$Dim2*sqrt(ef.terinter_data.jac.df$r2)
+ef.terinter_data.jac.df <- ef.terinter_data.jac.df[order(ef.terinter_data.jac.df$pval, decreasing=FALSE),] 
+ef.terinter_data.jac.df$species <- rownames(ef.terinter_data.jac.df)
+
+# create the plot for species
+ef.terinter_data.jac.plot <- ggplot(terinter_data.jac.pcoa.df) +
+  geom_point(mapping = aes(x = X1, y = X2, colour=Habitat)) +
+  geom_segment(data = ef.terinter_data.jac.df,
+              aes(x = 0, xend = Dim1, y = 0, yend = Dim2),
+              arrow = arrow(length = unit(0.25, "cm")), colour = "orange") +
+  geom_text_repel(data = ef.terinter_data.jac.df, aes(x = Dim1, y = Dim2, label = species), size = 3) + 
+  xlab(paste("PCo1 [", signif((terinter_data.jac.pcoa$eig[1]/sum(terinter_data.jac.pcoa$eig)),2)*100,"%]", sep="")) + 
+  ylab(paste("PCo2 [", signif((terinter_data.jac.pcoa$eig[2]/sum(terinter_data.jac.pcoa$eig)),2)*100,"%]", sep="")) +
+  ggtitle("terinter species")
+
+## bininter data
+
+bininter_data.jac <- vegdist(x = t(bininter_data), method = "jaccard") 
+bininter_data.jac.pcoa <- cmdscale(bininter_data.jac, eig = TRUE)
+# Next extract the coordinate points for plotting with ggplot the two first ordination axis
+bininter_data.jac.pcoa.df <- data.frame(bininter_data.jac.pcoa$points)
+#Add the metadata to colour points by sample variables
+bininter_data.jac.pcoa.df <- merge(bininter_data.jac.pcoa.df, sm$sample_info, by.x = 0, by.y = "Spygen", all.x=TRUE)
+
+#visualization
+#visu ordination by Habitat
+ef.bininter_data.jac <- envfit(bininter_data.jac.pcoa, t(bininter_data))
+ef.bininter_data.jac.df <- as.data.frame(ef.bininter_data.jac$vectors$arrows)
+ef.bininter_data.jac.df$r2 <- ef.bininter_data.jac$vectors$r
+ef.bininter_data.jac.df$pval <- ef.bininter_data.jac$vectors$pvals
+ef.bininter_data.jac.df$Dim1 <- ef.bininter_data.jac.df$Dim1*sqrt(ef.bininter_data.jac.df$r2)
+ef.bininter_data.jac.df$Dim2 <- ef.bininter_data.jac.df$Dim2*sqrt(ef.bininter_data.jac.df$r2)
+ef.bininter_data.jac.df <- ef.bininter_data.jac.df[order(ef.bininter_data.jac.df$pval, decreasing=FALSE),] 
+ef.bininter_data.jac.df$species <- rownames(ef.bininter_data.jac.df)
+
+# create the plot for species
+ef.bininter_data.jac.plot <- ggplot(bininter_data.jac.pcoa.df) +
+  geom_point(mapping = aes(x = X1, y = X2, colour=Habitat)) +
+  geom_segment(data = ef.bininter_data.jac.df,
+              aes(x = 0, xend = Dim1, y = 0, yend = Dim2),
+              arrow = arrow(length = unit(0.25, "cm")), colour = "orange") +
+  geom_text_repel(data = ef.bininter_data.jac.df, aes(x = Dim1, y = Dim2, label = species), size = 3) + 
+  xlab(paste("PCo1 [", signif((bininter_data.jac.pcoa$eig[1]/sum(bininter_data.jac.pcoa$eig)),2)*100,"%]", sep="")) + 
+  ylab(paste("PCo2 [", signif((bininter_data.jac.pcoa$eig[2]/sum(bininter_data.jac.pcoa$eig)),2)*100,"%]", sep="")) +
+  ggtitle("bininter species")
+
+## plot PcoA results for all set of species
+grid.arrange(ef.video_data.jac.plot,
+             ef.indval_data.jac.plot, 
+             ef.terinter_data.jac.plot, 
+             ef.bininter_data.jac.plot,
+             ncol=2, nrow=2, widths = c(2.7,2.7), bottom= "Data Description based on presence/absence of species")
+```
+
+## Permutational Multivariate Analysis of Variance (PERMANOVA) with Bray-curtis and Jaccard distance matrix on video data
+
+- The **Habitat** variable is significant in explaining the grouping of species in communities for each set of species (community, indval, terinter, bininter) in abundance or presence/absence.
+- The Habitat variable expresses the most compositional variability in abundance or presence/absence for all the indicator species found in the analyses using the **bininter** model.
+- The second figure shows how much the indicator species of each model are important to explain the compositional variability than the community species.
+
+```{r Permanova analysis, fig.height=6, fig.width=10, message=FALSE, warning=FALSE, results='hide'}
+#compute bray-curtis distance
+video_data.bray <- vegdist(x = t(sm$X), method = "bray")
+
+#identical(labels(video_data.bray), rownames(sm$sample_info)) # the labels in bray distance matrix and rows in metadata table in sm object are identical
+
+# compute adonis2 on metadata with bray-curtis distance
+video_data.bray.adonis2 <- adonis2(video_data.bray ~ Habitat, data = sm$sample_info, perm=999, by="terms")
+
+# compute jaccard distance matrix
+video_data.jac <- vegdist(x = t(sm$X), method = "jaccard", binary = TRUE)
+#identical(labels(video_data.jac), rownames(sm$sample_info)) #same order of labels in bray distance and samples in metadata
+
+# compute adonis2 on metadata with jaccard distance
+video_data.jac.adonis2 <- adonis2(video_data.jac ~ Habitat, data = sm$sample_info, by="margin")
+
+#compute bray-curtis distance
+indval_data.bray <- vegdist(x = t(indval_data), method = "bray")
+
+#identical(labels(indval_data.bray), rownames(sm$sample_info)) # the labels in bray distance matrix and rows in metadata table in sm object are identical
+
+# compute adonis2 on metadata with bray-curtis distance
+indval_data.bray.adonis2 <- adonis2(indval_data.bray ~ Habitat, data = sm$sample_info, perm=999, by="terms")
+
+# compute jaccard distance matrix
+indval_data.jac <- vegdist(x = t(indval_data), method = "jaccard", binary = TRUE)
+#identical(labels(indval_data.jac), rownames(sm$sample_info)) #same order of labels in bray distance and samples in metadata
+
+# compute adonis2 on metadata with jaccard distance
+indval_data.jac.adonis2 <- adonis2(indval_data.jac ~ Habitat, data = sm$sample_info, by="margin")
+
+#compute bray-curtis distance
+terinter_data.bray <- vegdist(x = t(terinter_data), method = "bray")
+
+#identical(labels(terinter_data.bray), rownames(sm$sample_info)) # the labels in bray distance matrix and rows in metadata table in sm object are identical
+
+# compute adonis2 on metadata with bray-curtis distance
+terinter_data.bray.adonis2 <- adonis2(terinter_data.bray ~ Habitat, data = sm$sample_info, perm=999, by="terms")
+
+# compute jaccard distance matrix
+terinter_data.jac <- vegdist(x = t(terinter_data), method = "jaccard", binary = TRUE)
+#identical(labels(terinter_data.jac), rownames(sm$sample_info)) #same order of labels in bray distance and samples in metadata
+
+# compute adonis2 on metadata with jaccard distance
+terinter_data.jac.adonis2 <- adonis2(terinter_data.jac ~ Habitat, data = sm$sample_info, by="margin")
+
+#compute bray-curtis distance
+bininter_data.bray <- vegdist(x = t(bininter_data), method = "bray")
+
+#identical(labels(bininter_data.bray), rownames(sm$sample_info)) # the labels in bray distance matrix and rows in metadata table in sm object are identical
+
+# compute adonis2 on metadata with bray-curtis distance
+bininter_data.bray.adonis2 <- adonis2(bininter_data.bray ~ Habitat, data = sm$sample_info, perm=999, by="terms")
+
+# compute jaccard distance matrix
+bininter_data.jac <- vegdist(x = t(bininter_data), method = "jaccard", binary = TRUE)
+#identical(labels(bininter_data.jac), rownames(sm$sample_info)) #same order of labels in bray distance and samples in metadata
+
+# compute adonis2 on metadata with jaccard distance
+bininter_data.jac.adonis2 <- adonis2(bininter_data.jac ~ Habitat, data = sm$sample_info, by="margin")
+
+
+permanova.list =list()
+
+permanova.list[["bray"]][["community"]]= video_data.bray.adonis2
+permanova.list[["jaccard"]][["community"]]= video_data.jac.adonis2
+permanova.list[["bray"]][["indval"]]= indval_data.bray.adonis2
+permanova.list[["jaccard"]][["indval"]]= indval_data.jac.adonis2
+permanova.list[["bray"]][["terinter"]]= terinter_data.bray.adonis2
+permanova.list[["jaccard"]][["terinter"]]= terinter_data.jac.adonis2
+permanova.list[["bray"]][["bininter"]]= bininter_data.bray.adonis2
+permanova.list[["jaccard"]][["bininter"]]= bininter_data.jac.adonis2
+
+permanova.df.list= list()
+## create a data frame for permanova test results
+for (j in names(permanova.list)) {
+  for (k in c("community", "indval", "terinter", "bininter")) {
+    result= permanova.list[[j]][[k]]
+    permanova.df <- data.frame(result$R2)
+    colnames(permanova.df) <- c("r2")
+    permanova.df$var <- rownames(result)
+    permanova.df$p.val <- result$`Pr(>F)`
+    
+    ## remove residual and total from the data frame
+    permanova.df <- permanova.df[!(permanova.df$var) %in% c('Residual','Total'),]
+    permanova.df$model <- k
+    permanova.df$distance <- j
+    
+    ## save dataframes in the list
+    
+  permanova.df.list[[j]][[k]] = permanova.df
+  }
+}
+
+#For each element in permanova.df.list, do the rbind of the dataframes of each binary prediction task
+permanova.df.list <- lapply(permanova.df.list, function(x){do.call("rbind", x)})
+
+#merge individual dataframes in single dataframe 
+permanova.df <- do.call("rbind",permanova.df.list)
+
+permanova.df$colour <- ifelse(permanova.df$p.val<=0.001,"blue","red")
+
+# barplot of pemonova by r2 
+ggplot(data=permanova.df, aes(x=model, y=r2, color=colour)) +
+  geom_bar(stat="identity", fill="lightblue")+
+  geom_text(aes(label=ifelse(p.val <= 0.001, "**" , ifelse(p.val <= 0.05, "*" , " " ))), vjust=-0.3, size=3.5,nudge_y=-0.0003)+ theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  scale_color_manual(values = c('blue', 'red'), labels =  c( 'pval <= 0.001', 'pval > 0.001 & pval <=0.05')) +
+  labs(color = "Significativity") + 
+  facet_grid(.~distance)
+
+permanova.df$species_type = ifelse(permanova.df$model=='community', 'community_species', 'indicator_species')
+permanova.df$species_type= factor(permanova.df$species_type)
+
+permanova.df$ratio <- ifelse(permanova.df$distance=='bray', permanova.df$r2/0.1906987, permanova.df$r2/0.2029815)
+
+# barplot of pemonova for r2 of each model under r2 of community
+permanova_summary <- ggplot(data=permanova.df, aes(x=model, y=ratio,color=distance)) +
+                        geom_bar(stat="identity", fill="lightblue")+
+                        geom_text(aes(label=round(ratio,digits = 2)), vjust=-0.7, size=3.5,nudge_y=-0.0003)+ theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+                        scale_color_manual(values = c('blue', 'red'))+
+                        #scale_color_manual(values = c('blue', 'red'), labels =  c( 'pval <= 0.001', 'pval > 0.001 & pval <=0.05')) +
+                        labs(y="r2_model/r2_community") + 
+                        facet_grid(.~distance)
+
+permanova_summary
+
+# permanova_comp.df = aggregate(r2 ~ species_type + distance + colour + p.val, permanova.df, 'mean')
+# # barplot of pemonova between community and indicator species
+# ggplot(data=permanova_comp.df, aes(x=species_type, y=r2, color=colour)) +
+#   geom_bar(stat="identity", fill="lightblue")+
+#   geom_text(aes(label=ifelse(p.val <= 0.001, "**" , ifelse(p.val <= 0.05, "*" , " " ))), vjust=-0.3, size=3.5,nudge_y=-0.0003)+ theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+#   scale_color_manual(values = c('blue', 'red'), labels =  c( 'pval <= 0.001', 'pval > 0.001 & pval <=0.05')) +
+#   labs(color = "Significativity") + 
+#   facet_grid(.~distance)
+
+
+```
+## Abundance of predomics indicator species on Habitat
+
+The following figures show the assessment of species abundance and prevalence for each of the following groups of species: **Core** (which are the common indicator species between IndVal, terinter and bininter models), **teronly** (which are the indicator species for terinter only and not the others) and **indval_bin** (which are the common indicator species between IndVal and bininter models)
+
+- The figure for **core** species shows that the following species: Halichoeres trimaculatus, Oxycheillinus bimaculatus, Lethrinus rubrioperculatus and Thalassoma lunare are abundant for Offshore only and their abundance value are between 5 and 20 but their density is very low.
+- The figure for **teronly** species shows that species with cdelta > 0.075 have high abondance and low density.
+- The figure for **indval_bin** species shows that the following species: Chromis viridis, Dascyllus aruanus, Halichoeres trimaculatus, Oxycheillinus bimaculatus, Lethrinus rubrioperculatus, Thalassoma lunare, Pomacentrus coelestis, Scarus ghobban and Scarus psittacus are abundant for Offshore only and their abundance value are between 5 and 60 but their density is very low.
+```{r abundace of species on Habitat, results='hide', message=FALSE, warning=FALSE, fig.height = 8, fig.width = 10}
+# combine terinter and bininter species
+pred_spec.df = merge(df2, df3, by= "Species", all = TRUE)
+indics_spec.df = merge(df1, pred_spec.df, by= "Species", all = TRUE)
+#pred_spec.df = filter(pred_spec.df, IsInFBM.x == 1 | IsInFBM.y == 1)
+splist <- list(indval=indics_spec.df$Species[indics_spec.df$IsIndSpec==1],
+               terinter=indics_spec.df$Species[indics_spec.df$IsInFBM.x==1],
+               bininter=indics_spec.df$Species[indics_spec.df$IsInFBM.y==1])
+
+# library(ggVennDiagram)
+# ggVennDiagram(splist)
+
+pred_spec.abund = sm$sample_info[, 3:153]
+pred_spec.abund.melt <- melt(pred_spec.abund)
+
+##Get the subtable for core species
+splist.core <- Reduce(intersect, splist)
+splist.terinter <- splist$terinter[which(is.na(match(splist$terinter, splist$bininter)))]
+splist.terinter <- splist.terinter[which(is.na(match(splist.terinter, splist$indval)))]
+splist.indval_bininter <- splist$indval[which(!is.na(match(splist$indval, splist$bininter)))]
+
+splist2 <- list(core=splist.core,
+                teronly=splist.terinter,
+                indval_bin=splist.indval_bininter)
+
+##Get the plots:
+plotlist <- list()
+for(i in names(splist2))
+{
+  idf <- pred_spec.abund.melt[pred_spec.abund.melt$variable %in% splist2[[i]],]
+  # ##plot barplots
+  # plotlist[["barplots"]][[i]] <- ggplot(idf, aes(x=variable, y=value)) + 
+  #   geom_boxplot(aes(fill=Habitat)) + 
+  #   coord_flip() + 
+  #   ylab("abundance") + 
+  #   xlab("species") + 
+  #   ggtitle(i)
+  ##plot density curves
+  plotlist[["densityPlots"]][[i]] <- ggplot(idf, aes(x=value)) + 
+    geom_density(aes(fill=Habitat), alpha=.5) + 
+    facet_wrap(~variable, scales = "free", ncol=5, nrow=6) + 
+    xlab("abundance") + 
+    ggtitle(i)+
+    theme(strip.text.x=element_text(size=5))
+  # ##histograms
+  # plotlist[["histogram"]][[i]] <- ggplot(idf, aes(x=value)) + 
+  #   geom_histogram(aes(fill=Habitat), alpha=.5) + 
+  #   facet_wrap(~variable, scales = "free", ncol=4, nrow=4) + 
+  #   xlab("abundance") + 
+  #   ggtitle(i)
+  ##Compute cliff' delta x species
+  idf$Habitat <- factor(idf$Habitat, levels=c("Inshore","Offshore"))
+  #next, we iterate for each species to compute cliff's deta (effect size of species change btw 2 groups, here inshore/ofshore)
+  i.cdelta.list <- list()
+  for(v in unique(idf$variable))
+  {
+    #Compute cdelta with the effsize package
+    v.out <- effsize::cliff.delta(idf$value[idf$variable %in% v]~idf$Habitat[idf$variable %in% v])
+    i.cdelta.list[[v]] <- data.frame(species=v,
+                                     cdelta=v.out$estimate)
+  }
+  i.cdelta.list <- do.call("rbind", i.cdelta.list)
+  plotlist[["cdelta"]][[i]] <- ggplot(i.cdelta.list, aes(x=species, y=cdelta)) + 
+    geom_bar(aes(fill=cdelta),stat = "identity") + 
+    scale_x_discrete(limits=i.cdelta.list$species[order(i.cdelta.list$cdelta, decreasing = TRUE)]) + 
+    coord_flip() + 
+    scale_fill_gradient2() + 
+    ggtitle(i) 
+}
+hlay <- rbind(c(1,1,2,2,2),
+              c(1,1,2,2,2))
+
+# plot effectSize + density for core species 
+grid.arrange(plotlist$cdelta$core, plotlist$densityPlots$core, layout_matrix=hlay)
+# plot effectSize + density for only terinter species 
+grid.arrange(plotlist$cdelta$teronly, plotlist$densityPlots$teronly, layout_matrix=hlay)
+# plot effectSize + density for core of indval and bininter species 
+grid.arrange(plotlist$cdelta$indval_bin, plotlist$densityPlots$indval_bin, layout_matrix=hlay)
+
+```
+
+## create a figure for article
+```{r analysis summary, results='hide', message=FALSE, warning=FALSE, fig.height = 10, fig.width = 20}
+
+pdf("analysis_summary.pdf", height= 8, width = 17)
+
+ggarrange(venn_abund+venn_pa, cor_scatt_abund, cor_box_abund, permanova_summary, cor_scatt_pa, cor_box_pa,
+          labels = c("A", "B", "C", "D","E","F"),
+          widths = c(2.5, 2.5, 1.4))
+dev.off()
+
+pdf("nmds_summary.pdf", height= 8, width = 17)
+
+ggarrange(nmds_abund, nmds_pa, ncol = 2, labels = c("A", "B"))
+dev.off()
+```
+
+## Conclusion
+ During these analysis, we used different methods to get indicator species for the community such as: Indval method, predomics model with Terbeam algorithm and the languages (terinter and binter). We made a comparison between all those methods and we can conclude that indicator species for the bininter model has the best explanation for compositional variability and are the best to indicates each of the different habitats of the community.
