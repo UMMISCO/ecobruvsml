@@ -115,7 +115,7 @@ R version: 4.4.2+
 
 - [*Cutler et al., 2007. Random Forests for classification in ecology. Ecology.*](http://doi.wiley.com/10.1890/07-0539.1)
 
-- [*Dufrene, Marc and Legendre, Pierre, 1997. Species assemblages and indicator species: {The} need for a flexible asymmetrical approach. Ecological Monographs.*](http://doi.wiley.com/10.1890/0012-9615(1997)067[0345:SAAIST]2.0.CO;2)
+- [*Dufrene, Marc and Legendre, Pierre, 1997. Species assemblages and indicator species: The need for a flexible asymmetrical approach. Ecological Monographs.*](http://doi.wiley.com/10.1890/0012-9615(1997)067[0345:SAAIST]2.0.CO;2)
 
 - [*Prifti et al., 2020. Interpretable and accurate prediction models for metagenomics data. GigaScience.*](https://academic.oup.com/gigascience/article/doi/10.1093/gigascience/giaa010/5801229)
 
