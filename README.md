@@ -113,10 +113,16 @@ R version: 4.4.2+
 
 ## 📚 Main references
 
-- <a href="{{http://doi.wiley.com/10.1890/07-0539.1}}" target="_blank">{{*Cutler et al., 2007. Random Forests for classification in ecology. Ecology.*}}</a>
+- [*Cutler et al., 2007. Random Forests for classification in ecology. Ecology.*](http://doi.wiley.com/10.1890/07-0539.1)
 
-- <a href="http://doi.wiley.com/10.1890/0012-9615(1997)067[0345:SAAIST]2.0.CO;2" target="_blank">*Dufrene, Marc and Legendre, Pierre, 1997. Species assemblages and indicator species: The need for a flexible asymmetrical approach. Ecological Monographs.*</a>
+- [*Dufrene, Marc and Legendre, Pierre, 1997. Species assemblages and indicator species: {The} need for a flexible asymmetrical approach. Ecological Monographs.*](http://doi.wiley.com/10.1890/0012-9615(1997)067[0345:SAAIST]2.0.CO;2)
+- [*Prifti et al., 2020. Interpretable and accurate prediction models for metagenomics data. GigaScience.*](https://academic.oup.com/gigascience/article/doi/10.1093/gigascience/giaa010/5801229)
+- [*Baletaud et al., 2022. Baited video reveal fish diversity in the vast inter-reef habitats of a marine tropical lagoon. Marine Biodiversity.*](https://link.springer.com/10.1007/s12526-021-01251-3)
 
-- <a href="https://academic.oup.com/gigascience/article/doi/10.1093/gigascience/giaa010/5801229" target="_blank">*Prifti et al., 2020. Interpretable and accurate prediction models for metagenomics data. GigaScience.*</a>
+- <a href="http://doi.wiley.com/10.1890/07-0539.1" target="_blank">*Cutler et al., 2007. Random Forests for classification in ecology. Ecology.*</a>
 
-- <a href="https://link.springer.com/10.1007/s12526-021-01251-3" target="_blank">*Baletaud et al., 2022. Baited video reveal fish diversity in the vast inter-reef habitats of a marine tropical lagoon. Marine Biodiversity.*</a>
+<a href="http://doi.wiley.com/10.1890/0012-9615(1997)067[0345:SAAIST]2.0.CO;2" target="_blank">*Dufrene, Marc and Legendre, Pierre, 1997. Species assemblages and indicator species: The need for a flexible asymmetrical approach. Ecological Monographs.*</a>
+
+<a href="https://academic.oup.com/gigascience/article/doi/10.1093/gigascience/giaa010/5801229" target="_blank">*Prifti et al., 2020. Interpretable and accurate prediction models for metagenomics data. GigaScience.*</a>
+
+<a href="https://link.springer.com/10.1007/s12526-021-01251-3" target="_blank">*Baletaud et al., 2022. Baited video reveal fish diversity in the vast inter-reef habitats of a marine tropical lagoon. Marine Biodiversity.*</a>
