@@ -51,7 +51,7 @@ This study uses the dataset collected by [Baletaud et al. (2022)](https://link.s
 | **Abundance metric** | MaxN (maximum number of individuals observed simultaneously) |
 | **Habitat grouping (for analysis)** | Inshore (Bay + Lagoon) vs Offshore (Barrier) |
 
-#### Ecological patterns
+### Ecological patterns
 - **Species prevalence**: 77% of the observed species were rare or appeared in only a few samples, while 23% showed at least 10% prevalence across sites.  
 - **Species richness**: Fish richness varied among habitats, with clear ecological distinctions between inshore (Bay and Lagoon) and offshore (Barrier) communities.  
 - **Community structure**: Analyses revealed strong grouping between coastal habitats (Bay and Lagoon), which were distinct from offshore Barrier sites. This justified pooling Bay and Lagoon as **inshore** habitats in subsequent analyses, compared against **offshore** (Barrier) sites for **indicator species identification** using the IndVal and Predomics methods.
