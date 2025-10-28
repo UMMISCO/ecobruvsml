@@ -8,7 +8,7 @@ The project compares a widely used statistical method in ecology, [**IndVal**], 
 
 
 ## 🌟 Main findings
-- Machine learning models from Predomics framework identify a smaller set of key fish indicator species than the state-of-the-art IndVal method.
+- Machine learning models from Predomics framework identify a smaller set of of ecologically interpretable indicators than the state-of-the-art IndVal method, which help to make monitoring  more efficient and affordable.
 - A strong positive correlation observed between feature importance from Predomics models and the indicator value from IndVal method provides robust evidence that both frameworks capture consistent ecological signals.
 - Predomics models show strong generalization performances on unseen data, with potential for wider application in ecosystem monitoring purposes.
 
