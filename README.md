@@ -113,7 +113,7 @@ R version: 4.4.2+
 
 ## 📚 Main references
 
-- <a href="{{http://doi.wiley.com/10.1890/07-0539.1}}" target="_blank">*Cutler et al., 2007. Random Forests for classification in ecology. Ecology.*</a>
+- <a href="{{http://doi.wiley.com/10.1890/07-0539.1}}" target="_blank">{{*Cutler et al., 2007. Random Forests for classification in ecology. Ecology.*}}</a>
 
 - <a href="http://doi.wiley.com/10.1890/0012-9615(1997)067[0345:SAAIST]2.0.CO;2" target="_blank">*Dufrene, Marc and Legendre, Pierre, 1997. Species assemblages and indicator species: The need for a flexible asymmetrical approach. Ecological Monographs.*</a>
 
