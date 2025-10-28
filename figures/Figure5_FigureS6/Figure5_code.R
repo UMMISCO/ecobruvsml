@@ -234,6 +234,7 @@ p2_dumbell <- ggplot(dunnlist2.df[dunnlist2.df$P.adjusted<0.05,], aes(x = compar
         strip.background = element_rect(fill = NA, linetype = 0),
         legend.position = "none")
 
+pdf(file="figures/Figure5/FigureS6.pdf", h=12, w=12)
 hlay="
 A
 A
@@ -242,11 +243,13 @@ C
 C
 D
 "
-p1 + 
-  p1_dumbell + 
-  p2 + 
-  p2_dumbell + 
+p1 + ggtitle("A") + 
+  p1_dumbell + theme(axis.text.y = element_blank()) +
+  p2 + ggtitle("B") + 
+  p2_dumbell + theme(axis.text.y = element_blank()) + 
   plot_layout(design = hlay)
+
+dev.off()
 
 
 
