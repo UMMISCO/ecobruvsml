@@ -3,7 +3,7 @@
 ## 🧭 Overview
 
 **EcoBruvsML** is a repository for comparative analyses of indicator species (fish species) identification in marine ecology using **Baited Remote Underwater Video Stations (BRUVS)** dataset.
-The project compares widely used traditional methods in ecology, [**IndVal**] and [**TWINSPAN**], with an interpretable machine learning framework, **Predomics**, to evaluate their effectiveness in identifying ecological indicators from BRUVS data.
+The project compares widely used traditional methods in ecology, **IndVal** and **TWINSPAN**, with an interpretable machine learning framework, **Predomics**, to evaluate their effectiveness in identifying ecological indicators from BRUVS data.
 
 
 ## 🌟 Main findings
@@ -73,7 +73,7 @@ All processed BRUVS data used for this article are archived in the public reposi
 | `data/` | Provides instructions to get the dataset used in this project |
 | `analyses/Figures/` | Contains all the vizualization with their code as presented in the paper linked to this project |
 
-## 🧩 Install required packages for analyses
+## 🧩 Install main required packages for analyses
 ```r
 # The IndVal method is implemented in the labdsv package
 
