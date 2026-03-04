@@ -1,5 +1,30 @@
-# R
-.Rhistory
+# =============================================================================
+# .gitignore for Bruvs-analysis-code
+# =============================================================================
+
+# Generated analysis outputs (fully regenerable by pipeline scripts)
+analyses/**/*.Rda
+analyses/**/*.rda
+analyses/**/*.csv
+# Ignore all files in /data except README.md
+data/*
+!data/README.md
+
+# Ignore all hidden files and directories at root
+/.*
+
+# R session artefacts
 .RData
-.Ruserdata
-.Rproj.user/
+.Rhistory
+*.Rout
+
+# macOS
+.DS_Store
+
+# Editor backup files
+*~
+*.swp
+
+# Allow gitignore itself
+!.gitignore
+
